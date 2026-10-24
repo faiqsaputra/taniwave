@@ -1,0 +1,1106 @@
+/* =========================================================
+   TANIWAVE NAVBAR
+   Clean • Premium • Responsive
+   ========================================================= */
+
+/* =========================================================
+   ROOT VARIABLES
+   ========================================================= */
+
+:root {
+  --tw-primary: #1d4d3a;
+  --tw-primary-dark: #153b2d;
+  --tw-primary-soft: #eaf3ee;
+
+  --tw-accent: #d4a017;
+  --tw-accent-soft: #f8f0d9;
+
+  --tw-text: #0f172a;
+  --tw-text-muted: #64748b;
+  --tw-text-soft: #94a3b8;
+
+  --tw-white: #ffffff;
+  --tw-bg: #f8faf9;
+  --tw-border: rgba(15, 23, 42, 0.07);
+
+  --tw-shadow-sm:
+    0 2px 8px rgba(15, 23, 42, 0.04);
+
+  --tw-shadow-md:
+    0 8px 30px rgba(15, 23, 42, 0.08);
+
+  --tw-shadow-lg:
+    0 18px 50px rgba(15, 23, 42, 0.13);
+
+  --tw-radius-sm: 10px;
+  --tw-radius-md: 14px;
+  --tw-radius-lg: 20px;
+
+  --tw-navbar-height: 72px;
+
+  --tw-transition:
+    180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+/* =========================================================
+   GLOBAL NAVBAR RESET
+   ========================================================= */
+
+.tw-navbar *,
+.tw-mobile-menu *,
+.tw-bottom-nav * {
+  box-sizing: border-box;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.tw-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  width: 100%;
+  height: var(--tw-navbar-height);
+
+  z-index: 1000;
+
+  background:
+    rgba(255, 255, 255, 0.88);
+
+  border-bottom:
+    1px solid var(--tw-border);
+
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+
+  transition:
+    background var(--tw-transition),
+    box-shadow var(--tw-transition);
+}
+
+
+/* =========================================================
+   NAVBAR INNER
+   ========================================================= */
+
+.tw-navbar-inner {
+  width: min(100% - 40px, 1440px);
+  height: 100%;
+
+  margin: 0 auto;
+
+  display: flex;
+  align-items: center;
+
+  gap: 28px;
+}
+
+
+/* =========================================================
+   BRAND
+   ========================================================= */
+
+.tw-brand {
+  flex-shrink: 0;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 0;
+  margin: 0;
+
+  border: 0;
+  background: transparent;
+
+  cursor: pointer;
+
+  color: var(--tw-text);
+
+  font-family: inherit;
+
+  text-decoration: none;
+
+  transition:
+    transform var(--tw-transition),
+    opacity var(--tw-transition);
+}
+
+.tw-brand:hover {
+  opacity: 0.9;
+}
+
+.tw-brand:active {
+  transform: scale(0.97);
+}
+
+
+/* =========================================================
+   LOGO CONTAINER
+   ========================================================= */
+
+.tw-brand-icon {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  overflow: hidden;
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(29, 77, 58, 0.08),
+      rgba(212, 160, 23, 0.06)
+    );
+
+  border:
+    1px solid rgba(29, 77, 58, 0.08);
+
+  box-shadow:
+    0 4px 12px rgba(29, 77, 58, 0.08);
+}
+
+.tw-brand-icon img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  display: block;
+}
+
+
+/* =========================================================
+   BRAND NAME
+   ========================================================= */
+
+.tw-brand-name {
+  font-size: 17px;
+  font-weight: 800;
+
+  letter-spacing: -0.045em;
+
+  color: var(--tw-primary);
+
+  white-space: nowrap;
+}
+
+.tw-brand-name span {
+  color: var(--tw-accent);
+}
+
+
+/* =========================================================
+   DESKTOP NAVIGATION
+   ========================================================= */
+
+.tw-desktop-nav {
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 3px;
+
+  min-width: 0;
+}
+
+
+/* =========================================================
+   DESKTOP NAV LINK
+   ========================================================= */
+
+.tw-nav-link {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  height: 40px;
+
+  padding: 0 12px;
+
+  border: 0;
+  border-radius: 10px;
+
+  background: transparent;
+
+  color: var(--tw-text-muted);
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    color var(--tw-transition),
+    background var(--tw-transition),
+    transform var(--tw-transition);
+}
+
+.tw-nav-link svg {
+  flex-shrink: 0;
+
+  transition:
+    transform var(--tw-transition);
+}
+
+.tw-nav-link:hover {
+  color: var(--tw-primary);
+
+  background:
+    rgba(29, 77, 58, 0.055);
+}
+
+.tw-nav-link:hover svg {
+  transform: translateY(-1px);
+}
+
+.tw-nav-link:active {
+  transform: scale(0.97);
+}
+
+
+/* =========================================================
+   ACTIVE DESKTOP NAV
+   ========================================================= */
+
+.tw-nav-link.active {
+  color: var(--tw-primary);
+
+  background:
+    var(--tw-primary-soft);
+
+  font-weight: 700;
+}
+
+.tw-nav-link.active::after {
+  content: '';
+
+  position: absolute;
+
+  left: 50%;
+  bottom: 3px;
+
+  width: 4px;
+  height: 4px;
+
+  border-radius: 50%;
+
+  background: var(--tw-accent);
+
+  transform: translateX(-50%);
+}
+
+
+/* =========================================================
+   MOBILE MENU TOGGLE
+   ========================================================= */
+
+.tw-menu-toggle {
+  display: none;
+
+  width: 42px;
+  height: 42px;
+
+  margin-left: auto;
+
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--tw-border);
+  border-radius: 12px;
+
+  background: var(--tw-white);
+
+  color: var(--tw-text);
+
+  cursor: pointer;
+
+  box-shadow: var(--tw-shadow-sm);
+
+  transition:
+    background var(--tw-transition),
+    color var(--tw-transition),
+    border-color var(--tw-transition),
+    transform var(--tw-transition);
+}
+
+.tw-menu-toggle:hover {
+  color: var(--tw-primary);
+
+  border-color:
+    rgba(29, 77, 58, 0.15);
+
+  background:
+    var(--tw-primary-soft);
+}
+
+.tw-menu-toggle:active {
+  transform: scale(0.94);
+}
+
+.tw-menu-toggle.active {
+  color: var(--tw-primary);
+
+  background:
+    var(--tw-primary-soft);
+
+  border-color:
+    rgba(29, 77, 58, 0.12);
+}
+
+
+/* =========================================================
+   MOBILE BACKDROP
+   ========================================================= */
+
+.tw-menu-backdrop {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 1050;
+
+  width: 100%;
+  height: 100%;
+
+  padding: 0;
+  margin: 0;
+
+  border: 0;
+
+  background:
+    rgba(15, 23, 42, 0.24);
+
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+
+  animation:
+    twFadeIn 180ms ease-out;
+}
+
+
+/* =========================================================
+   MOBILE DROPDOWN
+   ========================================================= */
+
+.tw-mobile-menu {
+  position: fixed;
+
+  top: calc(
+    var(--tw-navbar-height) + 10px
+  );
+
+  left: 16px;
+  right: 16px;
+
+  z-index: 1060;
+
+  padding: 18px;
+
+  border:
+    1px solid rgba(15, 23, 42, 0.07);
+
+  border-radius: 20px;
+
+  background:
+    rgba(255, 255, 255, 0.96);
+
+  box-shadow:
+    var(--tw-shadow-lg);
+
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+
+  animation:
+    twMenuIn 200ms
+    cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
+/* =========================================================
+   MOBILE MENU HEADER
+   ========================================================= */
+
+.tw-mobile-menu-header {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  padding:
+    2px 2px 16px;
+
+  border-bottom:
+    1px solid rgba(15, 23, 42, 0.06);
+}
+
+.tw-mobile-menu-header > div {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.tw-mobile-eyebrow {
+  color: var(--tw-accent);
+
+  font-size: 10px;
+  font-weight: 800;
+
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tw-mobile-menu-header strong {
+  color: var(--tw-text);
+
+  font-size: 17px;
+  font-weight: 750;
+
+  letter-spacing: -0.025em;
+}
+
+
+/* =========================================================
+   MOBILE CLOSE BUTTON
+   ========================================================= */
+
+.tw-mobile-close {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border: 0;
+  border-radius: 10px;
+
+  background:
+    rgba(15, 23, 42, 0.045);
+
+  color: var(--tw-text-muted);
+
+  cursor: pointer;
+
+  transition:
+    background var(--tw-transition),
+    color var(--tw-transition),
+    transform var(--tw-transition);
+}
+
+.tw-mobile-close:hover {
+  color: var(--tw-primary);
+
+  background:
+    var(--tw-primary-soft);
+}
+
+.tw-mobile-close:active {
+  transform: scale(0.92);
+}
+
+
+/* =========================================================
+   MOBILE LINKS
+   ========================================================= */
+
+.tw-mobile-links {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+
+  padding:
+    14px 0;
+}
+
+
+/* =========================================================
+   MOBILE LINK
+   ========================================================= */
+
+.tw-mobile-link {
+  width: 100%;
+
+  min-height: 54px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 7px 10px;
+
+  border: 0;
+  border-radius: 13px;
+
+  background: transparent;
+
+  color: var(--tw-text);
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background var(--tw-transition),
+    color var(--tw-transition),
+    transform var(--tw-transition);
+}
+
+.tw-mobile-link:hover {
+  background:
+    rgba(29, 77, 58, 0.055);
+
+  color: var(--tw-primary);
+}
+
+.tw-mobile-link:active {
+  transform: scale(0.985);
+}
+
+
+/* =========================================================
+   MOBILE LINK ICON
+   ========================================================= */
+
+.tw-mobile-link-icon {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 11px;
+
+  background:
+    rgba(15, 23, 42, 0.045);
+
+  color: var(--tw-text-muted);
+
+  transition:
+    background var(--tw-transition),
+    color var(--tw-transition);
+}
+
+.tw-mobile-link:hover
+.tw-mobile-link-icon {
+  color: var(--tw-primary);
+
+  background:
+    var(--tw-primary-soft);
+}
+
+
+/* =========================================================
+   MOBILE LINK LABEL
+   ========================================================= */
+
+.tw-mobile-link-label {
+  flex: 1;
+
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.tw-mobile-link > svg {
+  flex-shrink: 0;
+
+  color: var(--tw-text-soft);
+
+  transition:
+    transform var(--tw-transition),
+    color var(--tw-transition);
+}
+
+.tw-mobile-link:hover > svg {
+  color: var(--tw-primary);
+
+  transform: translateX(2px);
+}
+
+
+/* =========================================================
+   MOBILE ACTIVE LINK
+   ========================================================= */
+
+.tw-mobile-link.active {
+  color: var(--tw-primary);
+
+  background:
+    var(--tw-primary-soft);
+}
+
+.tw-mobile-link.active
+.tw-mobile-link-icon {
+  color: var(--tw-white);
+
+  background:
+    var(--tw-primary);
+
+  box-shadow:
+    0 4px 12px rgba(29, 77, 58, 0.16);
+}
+
+.tw-mobile-link.active > svg {
+  color: var(--tw-primary);
+}
+
+
+/* =========================================================
+   MOBILE MENU FOOTER
+   ========================================================= */
+
+.tw-mobile-menu-footer {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding:
+    13px 12px 2px;
+
+  border-top:
+    1px solid rgba(15, 23, 42, 0.06);
+
+  color: var(--tw-text-muted);
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tw-mobile-menu-footer svg {
+  color: var(--tw-primary);
+
+  flex-shrink: 0;
+}
+
+
+/* =========================================================
+   MOBILE BOTTOM NAVIGATION
+   ========================================================= */
+
+.tw-bottom-nav {
+  display: none;
+
+  position: fixed;
+
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+
+  z-index: 1000;
+
+  height: 68px;
+
+  padding:
+    6px;
+
+  border:
+    1px solid rgba(15, 23, 42, 0.07);
+
+  border-radius: 20px;
+
+  background:
+    rgba(255, 255, 255, 0.94);
+
+  box-shadow:
+    0 10px 35px rgba(15, 23, 42, 0.12);
+
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+
+/* =========================================================
+   BOTTOM NAV LINK
+   ========================================================= */
+
+.tw-bottom-link {
+  position: relative;
+
+  flex: 1;
+
+  min-width: 0;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 3px;
+
+  border: 0;
+  border-radius: 15px;
+
+  background: transparent;
+
+  color: var(--tw-text-muted);
+
+  font-family: inherit;
+
+  cursor: pointer;
+
+  transition:
+    background var(--tw-transition),
+    color var(--tw-transition),
+    transform var(--tw-transition);
+}
+
+.tw-bottom-link:active {
+  transform: scale(0.94);
+}
+
+.tw-bottom-link:hover {
+  color: var(--tw-primary);
+
+  background:
+    rgba(29, 77, 58, 0.045);
+}
+
+
+/* =========================================================
+   BOTTOM ICON
+   ========================================================= */
+
+.tw-bottom-icon {
+  width: 34px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  transition:
+    background var(--tw-transition),
+    color var(--tw-transition),
+    transform var(--tw-transition);
+}
+
+
+/* =========================================================
+   BOTTOM LABEL
+   ========================================================= */
+
+.tw-bottom-label {
+  max-width: 100%;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  font-size: 9.5px;
+  font-weight: 600;
+
+  line-height: 1.2;
+
+  transition:
+    color var(--tw-transition);
+}
+
+
+/* =========================================================
+   BOTTOM ACTIVE
+   ========================================================= */
+
+.tw-bottom-link.active {
+  color: var(--tw-primary);
+}
+
+.tw-bottom-link.active
+.tw-bottom-icon {
+  color: var(--tw-white);
+
+  background:
+    var(--tw-primary);
+
+  box-shadow:
+    0 4px 12px rgba(29, 77, 58, 0.18);
+
+  transform:
+    translateY(-1px);
+}
+
+.tw-bottom-link.active
+.tw-bottom-label {
+  color: var(--tw-primary);
+
+  font-weight: 750;
+}
+
+
+/* =========================================================
+   FOCUS ACCESSIBILITY
+   ========================================================= */
+
+.tw-brand:focus-visible,
+.tw-nav-link:focus-visible,
+.tw-menu-toggle:focus-visible,
+.tw-mobile-close:focus-visible,
+.tw-mobile-link:focus-visible,
+.tw-bottom-link:focus-visible {
+  outline: 2px solid var(--tw-accent);
+
+  outline-offset: 3px;
+}
+
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes twFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes twMenuIn {
+  from {
+    opacity: 0;
+    transform:
+      translateY(-8px)
+      scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1200px) {
+  .tw-navbar-inner {
+    width: min(100% - 28px, 1180px);
+
+    gap: 18px;
+  }
+
+  .tw-desktop-nav {
+    gap: 1px;
+  }
+
+  .tw-nav-link {
+    padding: 0 9px;
+
+    font-size: 12px;
+  }
+
+  .tw-nav-link {
+    gap: 5px;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 1024px) {
+  :root {
+    --tw-navbar-height: 64px;
+  }
+
+  .tw-navbar {
+    height: var(--tw-navbar-height);
+  }
+
+  .tw-navbar-inner {
+    width: calc(100% - 28px);
+
+    gap: 0;
+  }
+
+  /* Hide desktop navigation */
+  .tw-desktop-nav {
+    display: none;
+  }
+
+  /* Show mobile toggle */
+  .tw-menu-toggle {
+    display: flex;
+  }
+
+  /* Mobile brand */
+  .tw-brand-icon {
+    width: 38px;
+    height: 38px;
+
+    border-radius: 11px;
+  }
+
+  .tw-brand-name {
+    font-size: 16px;
+  }
+
+  /* Show bottom navigation */
+  .tw-bottom-nav {
+    display: flex;
+  }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+  .tw-navbar-inner {
+    width: calc(100% - 20px);
+  }
+
+  .tw-brand {
+    gap: 8px;
+  }
+
+  .tw-brand-icon {
+    width: 36px;
+    height: 36px;
+
+    border-radius: 10px;
+  }
+
+  .tw-brand-name {
+    font-size: 15px;
+  }
+
+  .tw-menu-toggle {
+    width: 38px;
+    height: 38px;
+
+    border-radius: 11px;
+  }
+
+  .tw-mobile-menu {
+    top: calc(
+      var(--tw-navbar-height) + 8px
+    );
+
+    left: 10px;
+    right: 10px;
+
+    padding: 15px;
+
+    border-radius: 18px;
+  }
+
+  .tw-bottom-nav {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+
+    height: 64px;
+
+    border-radius: 18px;
+  }
+
+  .tw-bottom-label {
+    font-size: 9px;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL DEVICES
+   ========================================================= */
+
+@media (max-width: 360px) {
+  .tw-brand-name {
+    display: none;
+  }
+
+  .tw-brand-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .tw-bottom-nav {
+    gap: 1px;
+  }
+
+  .tw-bottom-link {
+    border-radius: 13px;
+  }
+
+  .tw-bottom-icon {
+    width: 31px;
+  }
+
+  .tw-bottom-label {
+    font-size: 8.5px;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .tw-navbar *,
+  .tw-mobile-menu *,
+  .tw-bottom-nav * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
