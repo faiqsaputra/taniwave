@@ -1,1044 +1,1876 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import * as Phaser from 'phaser';
-
-import Navbar from '../components/layout/Navbar';
-import FarmQuestScene from '../game/academy/FarmQuestScene';
-import { MISSIONS } from '../game/academy/missions';
-
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
-  Award,
-  BadgeCheck,
   BookOpen,
   Check,
-  CheckCircle2,
   ChevronRight,
-  CircleHelp,
-  Clock3,
   Coins,
-  Compass,
   Gamepad2,
-  Lightbulb,
-  LockKeyhole,
+  Lock,
+  Play,
   RotateCcw,
-  ShieldCheck,
   Sparkles,
   Sprout,
-  Star,
-  Target,
   Trophy,
   X,
-} from 'lucide-react';
+  Zap,
+} from "lucide-react";
 
-import '../css/Academy.css';
+import PhaserGame from "../components/academy/PhaserGame";
+import CabaiGame from "../components/academy/CabaiGame";
+import BibitGame from "../components/academy/BibitGame";
+import MarketGame from "../components/academy/MarketGame";
 
-const PROGRESS_KEY = 'taniwave-farm-quest-progress-v1';
+import "../css/Academy.css";
+ 
 
-const RANKS = [
+/* =========================================================
+   MISSIONS
+========================================================= */
+
+export const MISSIONS = [
   {
-    minXP: 0,
-    title: 'Penjelajah',
-    description: 'Mulai mengenal keputusan pertanian.',
+    id: "cabai-hujan",
+    number: "01",
+    category: "BUDIDAYA",
+    title: "Cabai Setelah Hujan",
+    shortDescription:
+      "Tanamanmu baru 2 minggu. Hujan deras turun 3 hari berturut-turut.",
+    question:
+      "Hujan terus turun dan tanah terlihat terlalu basah. Apa langkah pertamamu?",
+    context: [
+      "🌧️ Hujan tinggi",
+      "💧 Tanah basah",
+      "🌱 Umur 14 hari",
+    ],
+    objective:
+      "Belajar mengumpulkan bukti sebelum memberikan perlakuan pada tanaman.",
+    duration: "3 menit",
+    xp: 80,
+    asset: "/assets/academy/case-cabai.svg",
+    difficulty: "easy",
+    difficultyLabel: "PEMULA",
+
+    entities: [
+      {
+        id: "soil",
+        label: "Tanah",
+        subtitle: "Kelembapan",
+        metric: "Terlalu basah",
+        detail:
+          "Permukaan tanah masih jenuh air dan belum kembali ke kondisi lembap yang ideal.",
+      },
+      {
+        id: "leaf",
+        label: "Daun cabai",
+        subtitle: "Gejala",
+        metric: "Mulai menguning",
+        detail:
+          "Beberapa daun bagian bawah tampak menguning. Ini adalah gejala yang perlu diamati, bukan diagnosis tunggal.",
+      },
+      {
+        id: "drainage",
+        label: "Drainase",
+        subtitle: "Aliran air",
+        metric: "Kurang lancar",
+        detail:
+          "Ada genangan kecil di sisi bedengan. Air perlu punya jalur keluar agar tidak terus mengendap.",
+      },
+    ],
+
+    choices: [
+      {
+        id: "drain",
+        label: "Periksa dan buka jalur drainase",
+        description:
+          "Kurangi genangan sebelum memberi input tambahan.",
+        score: 100,
+        xp: 80,
+        coins: 30,
+        feedback:
+          "Kamu memprioritaskan kondisi lingkungan akar terlebih dahulu. Setelah air terkendali, observasi berikutnya menjadi lebih masuk akal.",
+        learning:
+          "Kenali penyebab masalah sebelum menambah pupuk atau air.",
+      },
+      {
+        id: "fertilize",
+        label: "Langsung tambah pupuk",
+        description:
+          "Berikan nutrisi agar daun cepat hijau.",
+        score: 45,
+        xp: 80,
+        coins: 10,
+        feedback:
+          "Nutrisi bukan selalu jawaban pertama. Saat tanah terlalu basah, masalah air dan kondisi akar sebaiknya diperiksa lebih dulu.",
+        learning:
+          "Jangan menambah input sebelum memahami kondisi lahan.",
+      },
+      {
+        id: "water",
+        label: "Tambah penyiraman",
+        description:
+          "Sirami tanaman supaya tidak kekurangan air.",
+        score: 20,
+        xp: 80,
+        coins: 5,
+        feedback:
+          "Kondisi tanah menunjukkan air sudah berlebih. Menambah air akan membuat kondisi yang sedang bermasalah semakin berat.",
+        learning:
+          "Gunakan kondisi tanah sebagai bukti sebelum menyiram.",
+      },
+    ],
+
+    practiceIntro:
+      "Sekarang cek satu tanaman di kebunmu. Jangan langsung memberi perlakuan. Amati dan catat dulu.",
+
+    practiceChecklist: [
+      "Periksa apakah ada genangan",
+      "Rasakan kondisi lembap tanah",
+      "Amati warna dan posisi daun",
+      "Catat temuan sebelum mengambil tindakan",
+    ],
   },
+
   {
-    minXP: 30,
-    title: 'Pengamat Kebun',
-    description: 'Mulai membangun kebiasaan mengamati.',
+    id: "bibit-sehat",
+    number: "02",
+    category: "PEMBIBITAN",
+    title: "Pilih Bibit yang Siap Tanam",
+    shortDescription:
+      "Kamu punya tiga pilihan bibit. Mana yang paling siap masuk lahan?",
+    question:
+      "Tiga bibit tersedia. Mana yang kamu pilih untuk dipindahkan ke lahan?",
+    context: [
+      "🌱 3 bibit",
+      "☀️ Cuaca cerah",
+      "🪴 Siap pindah",
+    ],
+    objective:
+      "Mengenali ciri bibit yang sehat dan tidak hanya memilih berdasarkan ukuran.",
+    duration: "3 menit",
+    xp: 80,
+    asset: "/assets/academy/case-bibit.svg",
+    difficulty: "easy",
+    difficultyLabel: "PEMULA",
+
+    entities: [
+      {
+        id: "a",
+        label: "Bibit A",
+        subtitle: "Tinggi",
+        metric: "Terlalu memanjang",
+        detail:
+          "Batang tinggi dan kurus dengan jarak antar daun cukup jauh.",
+      },
+      {
+        id: "b",
+        label: "Bibit B",
+        subtitle: "Kondisi",
+        metric: "Kokoh & segar",
+        detail:
+          "Batang terlihat kokoh dan daun berwarna relatif seragam.",
+      },
+      {
+        id: "c",
+        label: "Bibit C",
+        subtitle: "Daun",
+        metric: "Ada bercak",
+        detail:
+          "Terlihat bercak pada beberapa bagian daun sehingga perlu pemeriksaan lebih lanjut.",
+      },
+    ],
+
+    choices: [
+      {
+        id: "b",
+        label: "Pilih Bibit B",
+        description:
+          "Utamakan bibit yang terlihat sehat dan kokoh.",
+        score: 100,
+        xp: 80,
+        coins: 30,
+        feedback:
+          "Kamu memilih berdasarkan kondisi tanaman, bukan sekadar tinggi atau ukuran.",
+        learning:
+          "Bibit sehat biasanya menjadi titik awal yang lebih baik untuk pertumbuhan.",
+      },
+      {
+        id: "a",
+        label: "Pilih Bibit A",
+        description:
+          "Pilih yang paling tinggi agar cepat besar.",
+        score: 50,
+        xp: 80,
+        coins: 10,
+        feedback:
+          "Ukuran tinggi belum tentu berarti bibit lebih siap. Struktur batang dan kondisi keseluruhan perlu diperhatikan.",
+        learning:
+          "Jangan menyamakan tinggi tanaman dengan kualitas bibit.",
+      },
+      {
+        id: "c",
+        label: "Pilih Bibit C",
+        description:
+          "Coba saja karena daunnya masih banyak.",
+        score: 35,
+        xp: 80,
+        coins: 5,
+        feedback:
+          "Bercak pada daun adalah sinyal untuk diperiksa lebih lanjut sebelum bibit dipindahkan.",
+        learning:
+          "Amati gejala tanaman sebelum memutuskan.",
+      },
+    ],
+
+    practiceIntro:
+      "Cari tiga bibit di sekitar kamu dan bandingkan kondisinya dengan kriteria sederhana.",
+
+    practiceChecklist: [
+      "Bandingkan kekokohan batang",
+      "Amati warna daun",
+      "Periksa bercak atau kerusakan",
+      "Pilih satu bibit dan tulis alasanmu",
+    ],
   },
+
   {
-    minXP: 70,
-    title: 'Perencana Budidaya',
-    description: 'Belajar menimbang pilihan dan risikonya.',
-  },
-  {
-    minXP: 120,
-    title: 'Pengelola Usaha',
-    description: 'Menghubungkan budidaya dan keputusan usaha.',
+    id: "harga-pasar",
+    number: "03",
+    category: "USAHA TANI",
+    title: "Harga Turun, Panen Tetap Jalan",
+    shortDescription:
+      "Harga komoditas turun. Kamu harus memilih strategi agar usaha tidak rugi.",
+    question:
+      "Harga sedang turun. Apa keputusanmu agar hasil panen tetap punya nilai?",
+    context: [
+      "📉 Harga -20%",
+      "💰 Modal terbatas",
+      "🧺 Panen dekat",
+    ],
+    objective:
+      "Belajar melihat keputusan budidaya dan pasar sebagai satu rangkaian.",
+    duration: "4 menit",
+    xp: 100,
+    asset: "/assets/academy/case-market.svg",
+    difficulty: "medium",
+    difficultyLabel: "MENENGAH",
+
+    entities: [
+      {
+        id: "market",
+        label: "Pasar",
+        subtitle: "Harga",
+        metric: "Turun 20%",
+        detail:
+          "Harga sedang melemah. Menjual semuanya pada satu waktu meningkatkan ketergantungan pada harga hari ini.",
+      },
+      {
+        id: "stock",
+        label: "Hasil panen",
+        subtitle: "Kualitas",
+        metric: "Layak jual",
+        detail:
+          "Sebagian besar hasil panen masih berada dalam kondisi yang dapat dipasarkan.",
+      },
+      {
+        id: "cost",
+        label: "Biaya",
+        subtitle: "Operasional",
+        metric: "Terbatas",
+        detail:
+          "Modal tambahan terbatas sehingga strategi baru harus memperhatikan biaya.",
+      },
+    ],
+
+    choices: [
+      {
+        id: "grade",
+        label: "Sortir dan cari beberapa kanal penjualan",
+        description:
+          "Pisahkan kualitas dan jangan bergantung pada satu pembeli.",
+        score: 100,
+        xp: 100,
+        coins: 40,
+        feedback:
+          "Kamu mengurangi ketergantungan pada satu harga dengan memperhatikan kualitas dan kanal penjualan.",
+        learning:
+          "Keputusan usaha tani tidak berhenti di produksi. Pasar dan kualitas juga perlu dibaca.",
+      },
+      {
+        id: "hold",
+        label: "Tahan seluruh panen",
+        description:
+          "Simpan semua sampai harga naik lagi.",
+        score: 55,
+        xp: 100,
+        coins: 15,
+        feedback:
+          "Menahan panen dapat menjadi pilihan, tetapi ada biaya dan risiko kualitas yang perlu dihitung.",
+        learning:
+          "Setiap strategi pasar punya biaya, risiko, dan batas waktu.",
+      },
+      {
+        id: "sell",
+        label: "Jual semua ke pembeli pertama",
+        description:
+          "Yang penting cepat terjual.",
+        score: 35,
+        xp: 100,
+        coins: 5,
+        feedback:
+          "Cepat terjual memang mengurangi waktu tunggu, tetapi kamu kehilangan kesempatan membandingkan kanal dan harga.",
+        learning:
+          "Bandingkan pilihan sebelum melepas hasil panen.",
+      },
+    ],
+
+    practiceIntro:
+      "Coba amati satu komoditas di pasar sekitar. Catat harga dan minimal dua tempat yang menjual atau membeli komoditas tersebut.",
+
+    practiceChecklist: [
+      "Catat harga hari ini",
+      "Bandingkan dua kanal penjualan",
+      "Catat kualitas/grade yang diminta",
+      "Tulis strategi yang paling masuk akal",
+    ],
   },
 ];
 
+/* =========================================================
+   LOCAL STORAGE
+========================================================= */
+
+const STORAGE_KEY =
+  "taniwave-smart-academy-v2";
+
+const defaultProgress = {
+  xp: 0,
+  coins: 0,
+  completed: [],
+  bestScores: {},
+  practices: {},
+};
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
 function loadProgress() {
+  const fallback = {
+    ...defaultProgress,
+    completed: [],
+    bestScores: {},
+    practices: {},
+  };
+
   try {
-    const raw = localStorage.getItem(PROGRESS_KEY);
-
-    if (raw) {
-      const parsed = JSON.parse(raw);
-
-      return {
-        xp: Math.max(0, Number(parsed.xp) || 0),
-        completed: Array.isArray(parsed.completed)
-          ? parsed.completed
-          : [],
-        scores:
-          parsed.scores && typeof parsed.scores === 'object'
-            ? parsed.scores
-            : {},
-      };
+    if (typeof window === "undefined") {
+      return fallback;
     }
-  } catch (error) {
-    console.error('Gagal membaca progres Farm Quest:', error);
+
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(saved);
+
+    return {
+      ...fallback,
+      ...parsed,
+      xp: Number.isFinite(parsed?.xp) ? parsed.xp : 0,
+      coins: Number.isFinite(parsed?.coins) ? parsed.coins : 0,
+      completed: Array.isArray(parsed?.completed) ? parsed.completed : [],
+      bestScores:
+        parsed?.bestScores && typeof parsed.bestScores === "object"
+          ? parsed.bestScores
+          : {},
+      practices:
+        parsed?.practices && typeof parsed.practices === "object"
+          ? parsed.practices
+          : {},
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveProgress(progress) {
+  try {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(progress)
+    );
+  } catch {
+    // Storage can be unavailable in private mode or restricted browsers.
+  }
+}
+
+function getDifficultyClass(
+  difficulty
+) {
+  if (
+    difficulty === "medium"
+  ) {
+    return "academy-difficulty academy-difficulty--medium";
   }
 
-  return {
-    xp: 0,
-    completed: [],
-    scores: {},
+  if (
+    difficulty === "hard"
+  ) {
+    return "academy-difficulty academy-difficulty--hard";
+  }
+
+  return "academy-difficulty academy-difficulty--easy";
+}
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+export default function Academy() {
+  const [
+    progress,
+    setProgress,
+  ] = useState(loadProgress);
+
+  const [
+    activeMission,
+    setActiveMission,
+  ] = useState(null);
+
+  const [
+    gameStarted,
+    setGameStarted,
+  ] = useState(false);
+
+  const [
+    gameResult,
+    setGameResult,
+  ] = useState(null);
+
+  const [
+    practiceMode,
+    setPracticeMode,
+  ] = useState(false);
+
+  const [
+    practiceChecked,
+    setPracticeChecked,
+  ] = useState([]);
+
+  const [
+    observedEntities,
+    setObservedEntities,
+  ] = useState([]);
+
+  const [
+    showResetConfirm,
+    setShowResetConfirm,
+  ] = useState(false);
+
+  /* =======================================================
+     DERIVED
+  ======================================================= */
+
+  const completedCount =
+    progress.completed.length;
+
+  const totalXP =
+    progress.xp;
+
+  const totalCoins =
+    progress.coins;
+
+  const practiceCompleted = Boolean(
+    activeMission && progress.practices?.[activeMission.id]
+  );
+
+  const observationTarget =
+    activeMission?.id === "harga-pasar" ? 3 : 2;
+
+  const visibleObservedCount = Math.min(
+    observedEntities.length,
+    observationTarget
+  );
+
+  const academyLevel =
+    Math.floor(totalXP / 300) + 1;
+
+  const currentLevelXP =
+    totalXP -
+    (academyLevel - 1) * 300;
+
+  const levelProgress =
+    Math.min(
+      100,
+      Math.round(
+        (currentLevelXP / 300) *
+          100
+      )
+    );
+
+  const completedMissionIds =
+    useMemo(
+      () =>
+        new Set(
+          progress.completed
+        ),
+      [progress.completed]
+    );
+
+  /* =======================================================
+     PERSIST
+  ======================================================= */
+
+  useEffect(() => {
+    saveProgress(progress);
+  }, [progress]);
+
+  /* =======================================================
+     START MISSION
+  ======================================================= */
+
+  const openMission = useCallback((mission) => {
+    setActiveMission(mission);
+    setGameStarted(false);
+    setGameResult(null);
+    setPracticeMode(false);
+    setPracticeChecked([]);
+    setObservedEntities([]);
+  }, []);
+
+  const startGame = useCallback(() => {
+    setGameStarted(true);
+    setGameResult(null);
+    setPracticeMode(false);
+    setPracticeChecked([]);
+    setObservedEntities([]);
+  }, []);
+
+  const closeMission = useCallback(() => {
+    setActiveMission(null);
+    setGameStarted(false);
+    setGameResult(null);
+    setPracticeMode(false);
+    setPracticeChecked([]);
+    setObservedEntities([]);
+  }, []);
+
+  /* =======================================================
+     GAME EVENTS
+     Stable callbacks prevent Phaser from being destroyed and
+     recreated every time the player inspects an object.
+  ======================================================= */
+
+  const handleEntityObserved = useCallback((entity) => {
+    if (!entity?.id) return;
+
+    setObservedEntities((prev) => {
+      if (prev.some((item) => item.id === entity.id)) {
+        return prev;
+      }
+
+      return [...prev, entity];
+    });
+  }, []);
+
+  const handleObservationComplete = useCallback(() => {
+    // Reserved for observation-stage feedback in a future iteration.
+  }, []);
+
+  const handleGameResult = useCallback((result) => {
+    setGameResult(result ?? null);
+  }, []);
+
+  const handleGameComplete = useCallback((result = {}) => {
+    if (!activeMission) return;
+
+    const mission = activeMission;
+    const safeScore = Number.isFinite(result.score) ? result.score : 0;
+    const earnedXP = Number.isFinite(result.xp)
+      ? result.xp
+      : (mission.xp ?? 0);
+    const earnedCoins = Number.isFinite(result.coins)
+      ? result.coins
+      : 0;
+
+    setProgress((prev) => {
+      const alreadyCompleted = prev.completed.includes(mission.id);
+      const oldBest = prev.bestScores[mission.id] ?? 0;
+      const bestScore = Math.max(oldBest, safeScore);
+
+      // XP and coins are awarded only on the first completion.
+      if (alreadyCompleted) {
+        if (bestScore === oldBest) return prev;
+
+        return {
+          ...prev,
+          bestScores: {
+            ...prev.bestScores,
+            [mission.id]: bestScore,
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        xp: prev.xp + earnedXP,
+        coins: prev.coins + earnedCoins,
+        completed: [...prev.completed, mission.id],
+        bestScores: {
+          ...prev.bestScores,
+          [mission.id]: bestScore,
+        },
+      };
+    });
+
+    setGameResult({
+      ...result,
+      score: safeScore,
+      xp: earnedXP,
+      coins: earnedCoins,
+    });
+  }, [activeMission]);
+
+  /* =======================================================
+     PRACTICE
+  ======================================================= */
+
+  const togglePractice = useCallback((index) => {
+    setPracticeChecked((prev) => (
+      prev.includes(index)
+        ? prev.filter((item) => item !== index)
+        : [...prev, index]
+    ));
+  }, []);
+
+  const finishPractice = useCallback(() => {
+    if (!activeMission) return;
+
+    setProgress((prev) => ({
+      ...prev,
+      practices: {
+        ...prev.practices,
+        [activeMission.id]: true,
+      },
+    }));
+  }, [activeMission]);
+
+  /* =======================================================
+     RESET
+  ======================================================= */
+
+  const resetProgress = useCallback(() => {
+    setProgress({
+      ...defaultProgress,
+      completed: [],
+      bestScores: {},
+      practices: {},
+    });
+    setShowResetConfirm(false);
+  }, []);
+
+  /* =======================================================
+     GAME COMPONENT
+  ======================================================= */
+
+  const renderGame = () => {
+    if (
+      !activeMission
+    ) {
+      return null;
+    }
+
+    const props = {
+      mission:
+        activeMission,
+
+      onEntityObserved:
+        handleEntityObserved,
+
+      onObservationComplete:
+        handleObservationComplete,
+
+      onResult:
+        handleGameResult,
+
+      onComplete:
+        handleGameComplete,
+
+      onExit:
+        closeMission,
+    };
+
+    switch (
+      activeMission.id
+    ) {
+      case "cabai-hujan":
+        return (
+          <CabaiGame
+            {...props}
+          />
+        );
+
+      case "bibit-sehat":
+        return (
+          <BibitGame
+            {...props}
+          />
+        );
+
+      case "harga-pasar":
+        return (
+          <MarketGame
+            {...props}
+          />
+        );
+
+      default:
+        return (
+          <PhaserGame
+            {...props}
+          />
+        );
+    }
   };
-}
 
-function getRank(xp) {
-  return [...RANKS]
-    .reverse()
-    .find((rank) => xp >= rank.minXP) || RANKS[0];
-}
+  /* =======================================================
+     GAME SCREEN
+  ======================================================= */
 
-function getNextRank(xp) {
-  return RANKS.find((rank) => rank.minXP > xp) || null;
-}
+  if (
+    activeMission &&
+    gameStarted
+  ) {
+    return (
+      <main className="academy-page academy-page--game" aria-label="Smart Academy game">
+        <header className="academy-game-topbar">
+          <button
+            type="button"
+            className="academy-back-button"
+            onClick={() => {
+              setGameStarted(
+                false
+              );
+              setGameResult(
+                null
+              );
+            }}
+          >
+            <ArrowLeft
+              size={18}
+            />
+            <span>
+              Keluar dari game
+            </span>
+          </button>
 
-function formatNumber(value) {
-  return new Intl.NumberFormat('id-ID', {
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+          <div className="academy-game-title">
+            <span>
+              {activeMission.category}
+            </span>
 
-function MetricCard({ icon: Icon, label, value, detail }) {
+            <strong>
+              {activeMission.title}
+            </strong>
+          </div>
+
+          <div className="academy-game-progress">
+            <span aria-live="polite">
+              {visibleObservedCount}/{observationTarget} bukti
+            </span>
+          </div>
+        </header>
+
+        <section className="academy-game-stage" aria-label={`Permainan: ${activeMission.title}`}>
+          <div className="academy-game-wrapper">
+            {renderGame()}
+          </div>
+        </section>
+
+        {gameResult && (
+          <div className="academy-result-dock">
+            <div className="academy-result-dock__info">
+              <div className="academy-result-icon">
+                {gameResult.score >=
+                80 ? (
+                  <Trophy
+                    size={21}
+                  />
+                ) : (
+                  <Sparkles
+                    size={21}
+                  />
+                )}
+              </div>
+
+              <div>
+                <strong>
+                  {practiceCompleted
+                    ? "Praktik kamu sudah tercatat"
+                    : "Keputusanmu sudah tercatat"}
+                </strong>
+
+                <span>
+                  Skor{" "}
+                  <b>
+                    {
+                      gameResult.score
+                    }
+                  </b>{" "}
+                  • +
+                  {
+                    gameResult.xp
+                  }{" "}
+                  XP • +
+                  {
+                    gameResult
+                      .coins
+                  }{" "}
+                  🪙
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="academy-primary-button"
+              onClick={practiceCompleted ? closeMission : () => setPracticeMode(true)}
+            >
+              {practiceCompleted ? "Kembali ke Academy" : "Lanjut Praktik"}
+              <ArrowRight size={18} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        {practiceMode && (
+          <PracticeModal
+            mission={
+              activeMission
+            }
+            checked={
+              practiceChecked
+            }
+            onToggle={
+              togglePractice
+            }
+            onFinish={
+              finishPractice
+            }
+            onClose={() =>
+              setPracticeMode(
+                false
+              )
+            }
+          />
+        )}
+      </main>
+    );
+  }
+
+  /* =======================================================
+     MISSION DETAIL
+  ======================================================= */
+
+  if (
+    activeMission &&
+    !gameStarted
+  ) {
+    const completed =
+      completedMissionIds.has(
+        activeMission.id
+      );
+
+    return (
+      <main className="academy-page academy-page--detail">
+        <div className="academy-detail-page">
+          <button
+            type="button"
+            className="academy-detail-back"
+            onClick={
+              closeMission
+            }
+          >
+            <ArrowLeft
+              size={18}
+            />
+            Kembali ke Academy
+          </button>
+
+          <div className="academy-detail-grid">
+            <section className="academy-detail-hero">
+              <div className="academy-detail-image-wrap">
+                <img
+                  src={activeMission.asset}
+                  alt={`Ilustrasi studi kasus ${activeMission.title}`}
+                  className="academy-detail-image"
+                  loading="eager"
+                  decoding="async"
+                />
+
+                <div className="academy-detail-floating-card">
+                  <Gamepad2
+                    size={17}
+                  />
+
+                  <span>
+                    MINI CASE
+                  </span>
+                </div>
+              </div>
+
+              <div className="academy-detail-copy">
+                <div className="academy-detail-meta">
+                  <span>
+                    {
+                      activeMission
+                        .number
+                    }
+                  </span>
+
+                  <span>
+                    {
+                      activeMission
+                        .category
+                    }
+                  </span>
+
+                  <span
+                    className={getDifficultyClass(
+                      activeMission.difficulty
+                    )}
+                  >
+                    {
+                      activeMission
+                        .difficultyLabel
+                    }
+                  </span>
+                </div>
+
+                <h1>
+                  {
+                    activeMission.title
+                  }
+                </h1>
+
+                <p className="academy-detail-description">
+                  {
+                    activeMission.shortDescription
+                  }
+                </p>
+
+                <div className="academy-detail-stats">
+                  <div>
+                    <Zap
+                      size={17}
+                    />
+
+                    <span>
+                      {
+                        activeMission
+                          .xp
+                      }{" "}
+                      XP
+                    </span>
+                  </div>
+
+                  <div>
+                    <BookOpen
+                      size={17}
+                    />
+
+                    <span>
+                      {
+                        activeMission
+                          .duration
+                      }
+                    </span>
+                  </div>
+
+                  <div>
+                    <Gamepad2
+                      size={17}
+                    />
+
+                    <span>
+                      Studi kasus
+                    </span>
+                  </div>
+                </div>
+
+                <div className="academy-question-card">
+                  <span className="academy-question-label">
+                    MISI HARI INI
+                  </span>
+
+                  <p>
+                    {
+                      activeMission.question
+                    }
+                  </p>
+                </div>
+
+                <div className="academy-context-list">
+                  {activeMission.context.map(
+                    (
+                      item
+                    ) => (
+                      <span
+                        key={item}
+                      >
+                        {item}
+                      </span>
+                    )
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="academy-start-button"
+                  onClick={
+                    startGame
+                  }
+                >
+                  <span>
+                    <Play
+                      size={20}
+                      fill="currentColor"
+                    />
+                  </span>
+
+                  <div>
+                    <strong>
+                      {completed
+                        ? "Mainkan Lagi"
+                        : "Mulai Studi Kasus"}
+                    </strong>
+
+                    <small>
+                      {completed
+                        ? "Ulangi untuk meningkatkan skor"
+                        : "Masuk ke simulasi keputusan"}
+                    </small>
+                  </div>
+
+                  <ArrowRight
+                    size={20}
+                  />
+                </button>
+              </div>
+            </section>
+
+            <aside className="academy-detail-sidebar">
+              <div className="academy-info-card">
+                <div className="academy-info-card__header">
+                  <Sprout
+                    size={18}
+                  />
+
+                  <strong>
+                    Yang akan kamu pelajari
+                  </strong>
+                </div>
+
+                <p>
+                  {
+                    activeMission.objective
+                  }
+                </p>
+              </div>
+
+              <div className="academy-info-card">
+                <div className="academy-info-card__header">
+                  <Sparkles
+                    size={18}
+                  />
+
+                  <strong>
+                    Cara bermain
+                  </strong>
+                </div>
+
+                <ol className="academy-step-list">
+                  <li>
+                    <span>
+                      1
+                    </span>
+                    Amati kondisi
+                  </li>
+
+                  <li>
+                    <span>
+                      2
+                    </span>
+                    Kumpulkan bukti
+                  </li>
+
+                  <li>
+                    <span>
+                      3
+                    </span>
+                    Ambil keputusan
+                  </li>
+
+                  <li>
+                    <span>
+                      4
+                    </span>
+                    Lihat konsekuensi
+                  </li>
+
+                  <li>
+                    <span>
+                      5
+                    </span>
+                    Praktik di dunia nyata
+                  </li>
+                </ol>
+              </div>
+
+              {completed && (
+                <div className="academy-completed-card">
+                  <div className="academy-completed-icon">
+                    <Check
+                      size={20}
+                    />
+                  </div>
+
+                  <div>
+                    <strong>
+                      Studi kasus selesai
+                    </strong>
+
+                    <span>
+                      Kamu sudah pernah
+                      menyelesaikan misi ini.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </aside>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /* =======================================================
+     MAIN ACADEMY
+  ======================================================= */
+
   return (
-    <article className="aq-metric-card">
-      <span className="aq-metric-icon">
-        <Icon size={19} />
-      </span>
+    <main className="academy-page academy-page--home">
+      {/* ===================================================
+          HERO
+      =================================================== */}
 
-      <div>
-        <span className="aq-metric-label">{label}</span>
-        <strong>{value}</strong>
-        <small>{detail}</small>
+      <section className="academy-hero">
+        <div className="academy-hero__background">
+          <div className="academy-hero__circle academy-hero__circle--one" />
+          <div className="academy-hero__circle academy-hero__circle--two" />
+          <div className="academy-hero__circle academy-hero__circle--three" />
+        </div>
+
+        <div className="academy-hero__content">
+          <div className="academy-hero__copy">
+            <div className="academy-eyebrow">
+              <Gamepad2
+                size={15}
+              />
+              SMART ACADEMY
+            </div>
+
+            <h1>
+              Belajar jadi petani.
+              <br />
+
+              <span>
+                Mainkan keputusannya.
+              </span>
+            </h1>
+
+            <p>
+              Bukan kelas panjang.
+              Hadapi kasus nyata,
+              ambil keputusan, lihat
+              konsekuensinya, lalu
+              coba praktikkan di
+              kebunmu.
+            </p>
+
+            <div className="academy-hero-actions">
+              <button
+                type="button"
+                className="academy-hero-button"
+                onClick={() => {
+                  const first =
+                    MISSIONS.find(
+                      (mission) =>
+                        !completedMissionIds.has(
+                          mission.id
+                        )
+                    ) ||
+                    MISSIONS[0];
+
+                  openMission(
+                    first
+                  );
+                }}
+              >
+                <Play
+                  size={18}
+                  fill="currentColor"
+                />
+                Mulai Belajar
+              </button>
+
+              <span className="academy-hero-note">
+                ⚡ 3–4 menit per kasus
+              </span>
+            </div>
+          </div>
+
+          <div className="academy-hero-character">
+            <div className="academy-character-glow" />
+
+            <img
+              src="/assets/academy/farmer-mascot.svg"
+              alt="Petani muda TANIWAVE"
+            />
+
+            <div className="academy-character-badge">
+              <Sparkles
+                size={14}
+              />
+              <span>
+                Siap bertani?
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================
+          PLAYER STATUS
+      =================================================== */}
+
+      <section className="academy-content">
+        <div className="academy-player-card">
+          <div className="academy-player-profile">
+            <div className="academy-player-avatar">
+              🌱
+            </div>
+
+            <div>
+              <span>
+                PETANI MUDA
+              </span>
+
+              <strong>
+                Level{" "}
+                {academyLevel}
+              </strong>
+            </div>
+          </div>
+
+          <div className="academy-player-progress">
+            <div className="academy-player-progress__top">
+              <span>
+                Progress level
+              </span>
+
+              <strong>
+                {currentLevelXP}
+                /300 XP
+              </strong>
+            </div>
+
+            <div className="academy-progress-track">
+              <div
+                className="academy-progress-fill"
+                style={{
+                  width: `${levelProgress}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="academy-player-rewards">
+            <div>
+              <Zap
+                size={17}
+              />
+
+              <strong>
+                {totalXP}
+              </strong>
+
+              <span>
+                XP
+              </span>
+            </div>
+
+            <div>
+              <Coins
+                size={17}
+              />
+
+              <strong>
+                {totalCoins}
+              </strong>
+
+              <span>
+                Coins
+              </span>
+            </div>
+
+            <div>
+              <Trophy
+                size={17}
+              />
+
+              <strong>
+                {completedCount}
+              </strong>
+
+              <span>
+                Selesai
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* =================================================
+            SECTION HEADER
+        ================================================= */}
+
+        <div className="academy-section-header">
+          <div>
+            <span className="academy-section-eyebrow">
+              PILIH PERMAINANMU
+            </span>
+
+            <h2>
+              Mau belajar apa hari ini?
+            </h2>
+
+            <p>
+              Setiap kasus membawa kamu
+              lebih dekat ke praktik nyata.
+            </p>
+          </div>
+
+          <div className="academy-mission-count">
+            <strong>
+              {completedCount}
+            </strong>
+
+            <span>
+              / {MISSIONS.length}
+              <br />
+              misi selesai
+            </span>
+          </div>
+        </div>
+
+        {/* =================================================
+            MISSION GRID
+        ================================================= */}
+
+        <div className="academy-mission-grid">
+          {MISSIONS.map(
+            (
+              mission,
+              index
+            ) => {
+              const completed =
+                completedMissionIds.has(
+                  mission.id
+                );
+
+              const bestScore =
+                progress.bestScores[
+                  mission.id
+                ];
+
+              return (
+                <MissionCard
+                  key={
+                    mission.id
+                  }
+                  mission={
+                    mission
+                  }
+                  index={
+                    index
+                  }
+                  completed={
+                    completed
+                  }
+                  bestScore={
+                    bestScore
+                  }
+                  onClick={() =>
+                    openMission(
+                      mission
+                    )
+                  }
+                />
+              );
+            }
+          )}
+        </div>
+
+        {/* =================================================
+            PRACTICE MESSAGE
+        ================================================= */}
+
+        <section className="academy-practice-banner">
+          <div className="academy-practice-banner__icon">
+            🌱
+          </div>
+
+          <div className="academy-practice-banner__content">
+            <span>
+              BELAJAR → PRAKTIK
+            </span>
+
+            <h3>
+              Game selesai bukan berarti
+              belajarnya selesai.
+            </h3>
+
+            <p>
+              Setelah menyelesaikan studi
+              kasus, kamu akan mendapatkan
+              checklist sederhana untuk
+              dicoba langsung di kebun,
+              lahan, atau lingkunganmu.
+            </p>
+          </div>
+
+          <div className="academy-practice-banner__steps">
+            <div>
+              <span>
+                01
+              </span>
+              <strong>
+                Mainkan
+              </strong>
+            </div>
+
+            <ChevronRight />
+
+            <div>
+              <span>
+                02
+              </span>
+              <strong>
+                Pahami
+              </strong>
+            </div>
+
+            <ChevronRight />
+
+            <div>
+              <span>
+                03
+              </span>
+              <strong>
+                Praktik
+              </strong>
+            </div>
+          </div>
+        </section>
+
+        {/* =================================================
+            RESET
+        ================================================= */}
+
+        <div className="academy-footer">
+          <button
+            type="button"
+            onClick={() =>
+              setShowResetConfirm(
+                true
+              )
+            }
+          >
+            <RotateCcw
+              size={14}
+            />
+            Reset progress
+          </button>
+        </div>
+      </section>
+
+      {/* ===================================================
+          RESET MODAL
+      =================================================== */}
+
+      {showResetConfirm && (
+        <div className="academy-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowResetConfirm(false); }}>
+          <section className="academy-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="academy-reset-title">
+            <button
+              type="button"
+              className="academy-modal-close"
+              aria-label="Tutup dialog reset progress"
+              onClick={() =>
+                setShowResetConfirm(
+                  false
+                )
+              }
+            >
+              <X
+                size={18}
+              />
+            </button>
+
+            <div className="academy-confirm-icon">
+              <RotateCcw
+                size={24}
+              />
+            </div>
+
+            <h3 id="academy-reset-title">
+              Reset progress?
+            </h3>
+
+            <p>
+              XP, coins, skor terbaik,
+              dan status misi yang sudah
+              selesai akan dihapus dari
+              perangkat ini.
+            </p>
+
+            <div className="academy-confirm-actions">
+              <button
+                type="button"
+                onClick={() =>
+                  setShowResetConfirm(
+                    false
+                  )
+                }
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  resetProgress
+                }
+              >
+                Reset Progress
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+    </main>
+  );
+}
+
+/* =========================================================
+   MISSION CARD
+========================================================= */
+
+function MissionCard({
+  mission,
+  index,
+  completed,
+  bestScore,
+  onClick,
+}) {
+  return (
+    <article
+      className={`academy-mission-card ${completed ? "is-completed" : ""}`}
+      data-mission-index={index}
+      role="button"
+      tabIndex={0}
+      aria-label={`Buka studi kasus ${mission.title}. Reward ${mission.xp} XP. Durasi ${mission.duration}.`}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+    >
+      <div className="academy-card-image">
+        <img
+          src={mission.asset}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+        />
+
+        <div className="academy-card-number">
+          {mission.number}
+        </div>
+
+        <div
+          className={getDifficultyClass(
+            mission.difficulty
+          )}
+        >
+          {mission.difficultyLabel}
+        </div>
+
+        {completed && (
+          <div className="academy-card-complete">
+            <Check
+              size={15}
+            />
+            SELESAI
+          </div>
+        )}
+
+        <div className="academy-card-play" aria-hidden="true">
+          <Play size={18} fill="currentColor" />
+        </div>
+      </div>
+
+      <div className="academy-card-body">
+        <div className="academy-card-category">
+          {mission.category}
+        </div>
+
+        <h3>
+          {mission.title}
+        </h3>
+
+        <p>
+          {mission.shortDescription}
+        </p>
+
+        <div className="academy-card-context">
+          {mission.context
+            .slice(0, 2)
+            .map(
+              (
+                item
+              ) => (
+                <span
+                  key={item}
+                >
+                  {item}
+                </span>
+              )
+            )}
+        </div>
+
+        <div className="academy-card-footer">
+          <div className="academy-card-reward">
+            <Zap
+              size={15}
+            />
+
+            <strong>
+              +{mission.xp}
+            </strong>
+
+            <span>
+              XP
+            </span>
+          </div>
+
+          <div className="academy-card-duration">
+            <Gamepad2
+              size={14}
+            />
+
+            {mission.duration}
+          </div>
+
+          <ChevronRight
+            className="academy-card-arrow"
+            size={18}
+          />
+        </div>
+
+        {bestScore !==
+          undefined && (
+          <div className="academy-card-score">
+            <Trophy
+              size={13}
+            />
+
+            Skor terbaik{" "}
+            <strong>
+              {bestScore}
+            </strong>
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
-function MissionStatus({ completed }) {
-  return completed ? (
-    <span className="aq-mission-status aq-mission-status-done">
-      <CheckCircle2 size={13} />
-      Selesai
-    </span>
-  ) : (
-    <span className="aq-mission-status">
-      <Compass size={13} />
-      Tersedia
-    </span>
-  );
-}
+/* =========================================================
+   PRACTICE MODAL
+========================================================= */
 
-function EntityButton({ entity, selected, inspected, onClick }) {
-  return (
-    <button
-      type="button"
-      className={`aq-entity-button ${
-        selected ? 'selected' : ''
-      } ${inspected ? 'inspected' : ''}`}
-      onClick={onClick}
-    >
-      <span className="aq-entity-status">
-        {inspected ? (
-          <CheckCircle2 size={14} />
-        ) : (
-          <CircleHelp size={14} />
-        )}
-      </span>
+function PracticeModal({
+  mission,
+  checked,
+  onToggle,
+  onFinish,
+  onClose,
+}) {
+  const total =
+    mission.practiceChecklist
+      .length;
 
-      <span>
-        <strong>{entity.label}</strong>
-        <small>{entity.subtitle}</small>
-      </span>
-
-      <ChevronRight size={14} />
-    </button>
-  );
-}
-
-export default function Academy() {
-  const mountRef = useRef(null);
-  const gameRef = useRef(null);
-
-  const [gameReady, setGameReady] = useState(false);
-
-  const [activeMissionId, setActiveMissionId] = useState(
-    MISSIONS[0].id
-  );
-
-  const [selectedEntityId, setSelectedEntityId] = useState(null);
-  const [inspectedEntityIds, setInspectedEntityIds] = useState([]);
-  const [selectedChoiceId, setSelectedChoiceId] = useState(null);
-
-  const [progress, setProgress] = useState(loadProgress);
-  const [notice, setNotice] = useState('');
-
-  const activeMission = useMemo(
-    () =>
-      MISSIONS.find((mission) => mission.id === activeMissionId) ||
-      MISSIONS[0],
-    [activeMissionId]
-  );
-
-  const selectedEntity = activeMission.entities.find(
-    (entity) => entity.id === selectedEntityId
-  );
-
-  const selectedChoice = activeMission.choices.find(
-    (choice) => choice.id === selectedChoiceId
-  );
-
-  const rank = getRank(progress.xp);
-  const nextRank = getNextRank(progress.xp);
-
-  const completedCount = progress.completed.filter((id) =>
-    MISSIONS.some((mission) => mission.id === id)
-  ).length;
-
-  const missionCompleted = progress.completed.includes(
-    activeMission.id
-  );
-
-  const bestScore = progress.scores?.[activeMission.id] || 0;
-
-  const inspectionReady = Boolean(
-    selectedEntityId &&
-      inspectedEntityIds.includes(selectedEntityId)
-  );
-
-  const canChoose = inspectionReady && !selectedChoiceId;
-
-  const rankProgress = nextRank
-    ? Math.min(
-        100,
-        ((progress.xp - rank.minXP) /
-          (nextRank.minXP - rank.minXP)) *
-          100
-      )
-    : 100;
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
-    } catch (error) {
-      console.error('Gagal menyimpan progres Farm Quest:', error);
-    }
-  }, [progress]);
-
-  /* =====================================
-     PHASER LIFECYCLE
-  ===================================== */
-
-  useEffect(() => {
-    if (!mountRef.current) return undefined;
-
-    const scene = new FarmQuestScene({
-      onReady: () => {
-        setGameReady(true);
-      },
-
-      onEntitySelect: (entityId) => {
-        setSelectedEntityId(entityId);
-
-        setInspectedEntityIds((previous) =>
-          previous.includes(entityId)
-            ? previous
-            : [...previous, entityId]
-        );
-      },
-    });
-
-    const game = new Phaser.Game({
-      type: Phaser.AUTO,
-
-      width: 960,
-      height: 440,
-
-      backgroundColor: '#EAF2E6',
-      parent: mountRef.current,
-
-      scene: [scene],
-
-      scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-      },
-
-      render: {
-        antialias: true,
-        roundPixels: false,
-      },
-    });
-
-    gameRef.current = game;
-
-    return () => {
-      setGameReady(false);
-
-      game.destroy(true);
-
-      gameRef.current = null;
-    };
-  }, []);
-
-  /* Keep Phaser world synchronized with React state. */
-
-  useEffect(() => {
-    if (!gameReady || !gameRef.current) return;
-
-    try {
-      const scene = gameRef.current.scene.getScene(
-        'FarmQuestScene'
-      );
-
-      scene.setQuestState({
-        missionId: activeMissionId,
-        selectedEntityId,
-        outcomeId: selectedChoiceId,
-      });
-    } catch (error) {
-      console.error('Gagal memperbarui dunia Farm Quest:', error);
-    }
-  }, [
-    gameReady,
-    activeMissionId,
-    selectedEntityId,
-    selectedChoiceId,
-  ]);
-
-  useEffect(() => {
-    if (!notice) return undefined;
-
-    const timer = window.setTimeout(() => setNotice(''), 4000);
-
-    return () => window.clearTimeout(timer);
-  }, [notice]);
-
-  const selectMission = (missionId) => {
-    setActiveMissionId(missionId);
-    setSelectedEntityId(null);
-    setInspectedEntityIds([]);
-    setSelectedChoiceId(null);
-    setNotice('');
-  };
-
-  const inspectEntity = (entityId) => {
-    setSelectedEntityId(entityId);
-
-    setInspectedEntityIds((previous) =>
-      previous.includes(entityId)
-        ? previous
-        : [...previous, entityId]
-    );
-  };
-
-  const chooseDecision = (choice) => {
-    if (!inspectionReady || selectedChoiceId) return;
-
-    setSelectedChoiceId(choice.id);
-
-    setProgress((previous) => {
-      const wasCompleted = previous.completed.includes(
-        activeMission.id
-      );
-
-      const previousBest =
-        previous.scores?.[activeMission.id] || 0;
-
-      return {
-        xp: previous.xp + (wasCompleted ? 0 : choice.xp),
-
-        completed: wasCompleted
-          ? previous.completed
-          : [...previous.completed, activeMission.id],
-
-        scores: {
-          ...previous.scores,
-          [activeMission.id]: Math.max(
-            previousBest,
-            choice.score
-          ),
-        },
-      };
-    });
-
-    setNotice(
-      missionCompleted
-        ? 'Misi diulang. Skor terbaik diperbarui jika hasilmu meningkat, tetapi XP tidak diberikan dua kali.'
-        : `Misi selesai! Kamu mendapatkan ${choice.xp} XP.`
-    );
-  };
-
-  const replayMission = () => {
-    setSelectedEntityId(null);
-    setInspectedEntityIds([]);
-    setSelectedChoiceId(null);
-    setNotice('Misi siap dimainkan kembali.');
-  };
-
-  const resetProgress = () => {
-    const confirmed = window.confirm(
-      'Hapus semua progres Farm Quest yang tersimpan di browser?'
-    );
-
-    if (!confirmed) return;
-
-    setProgress({
-      xp: 0,
-      completed: [],
-      scores: {},
-    });
-
-    setSelectedEntityId(null);
-    setInspectedEntityIds([]);
-    setSelectedChoiceId(null);
-    setNotice('Progres Farm Quest berhasil direset.');
-  };
-
-  const achievements = [
-    {
-      id: 'first-mission',
-      title: 'Langkah Pertama',
-      description: 'Selesaikan satu misi.',
-      unlocked: completedCount >= 1,
-      icon: Sprout,
-    },
-    {
-      id: 'farm-observer',
-      title: 'Pengamat Kebun',
-      description: 'Selesaikan dua misi.',
-      unlocked: completedCount >= 2,
-      icon: Target,
-    },
-    {
-      id: 'farm-strategist',
-      title: 'Strategi Kebun',
-      description: 'Selesaikan seluruh misi demo.',
-      unlocked: completedCount >= MISSIONS.length,
-      icon: Trophy,
-    },
-  ];
+  const complete =
+    checked.length === total;
 
   return (
-    <div className="aq-page">
-      <Navbar />
-
-      <main className="aq-shell">
-        {/* HEADER */}
-        <header className="aq-page-header">
-          <div className="aq-title-group">
-            <span className="aq-title-icon">
-              <Gamepad2 size={25} />
-            </span>
-
-            <div>
-              <div className="aq-title-line">
-                <h1>Smart Academy</h1>
-                <span className="aq-demo-badge">
-                  FARM QUEST
-                </span>
-              </div>
-
-              <p>
-                Mainkan simulasi pertanian, ambil keputusan, dan pahami
-                konsekuensinya.
-              </p>
-            </div>
-          </div>
-
-          <div className="aq-rank-chip">
-            <span>
-              <Star size={17} />
-            </span>
-
-            <div>
-              <strong>{rank.title}</strong>
-              <small>Level belajar</small>
-            </div>
-          </div>
-        </header>
-
-        {/* GAME INTRO */}
-        <section className="aq-hero">
-          <div className="aq-hero-copy">
-            <span className="aq-eyebrow">
-              <Sparkles size={14} />
-              BELAJAR LEWAT KEPUTUSAN
-            </span>
-
-            <h2>
-              Bukan cuma belajar pertanian.
-              <br />
-              <span>Rasakan konsekuensinya.</span>
-            </h2>
-
-            <p>
-              Periksa kondisi lahan, susun prioritas, dan cocokkan hasil
-              panen dengan pasar melalui misi interaktif.
-            </p>
-          </div>
-
-          <div className="aq-hero-icon" aria-hidden="true">
-            <div className="aq-hero-orbit aq-hero-orbit-one" />
-            <div className="aq-hero-orbit aq-hero-orbit-two" />
-
-            <span className="aq-hero-sprout">
-              <Sprout size={45} />
-            </span>
-
-            <span className="aq-hero-star">
-              <Sparkles size={21} />
-            </span>
-          </div>
-        </section>
-
-        {/* PROGRESS */}
-        <section className="aq-progress-grid">
-          <MetricCard
-            icon={Coins}
-            label="Total XP"
-            value={formatNumber(progress.xp)}
-            detail="Poin belajar terkumpul"
+    <div className="academy-modal-backdrop academy-modal-backdrop--practice" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="academy-practice-modal" role="dialog" aria-modal="true" aria-labelledby="academy-practice-title">
+        <button
+          type="button"
+          className="academy-modal-close"
+          aria-label="Tutup checklist praktik"
+          onClick={onClose}
+        >
+          <X
+            size={19}
           />
+        </button>
 
-          <MetricCard
-            icon={CheckCircle2}
-            label="Misi selesai"
-            value={`${completedCount}/${MISSIONS.length}`}
-            detail="Misi demo dituntaskan"
-          />
-
-          <MetricCard
-            icon={Award}
-            label="Skor terbaik"
-            value={
-              Object.values(progress.scores || {}).length > 0
-                ? `${Math.max(
-                    ...Object.values(progress.scores)
-                  )}/100`
-                : '—'
-            }
-            detail="Skor tertinggi antar-misi"
-          />
-        </section>
-
-        {/* LEVEL PROGRESS */}
-        <section className="aq-level-panel">
-          <div className="aq-level-top">
-            <div>
-              <span className="aq-eyebrow">LEVEL PERJALANAN</span>
-              <h2>{rank.title}</h2>
-              <p>{rank.description}</p>
-            </div>
-
-            <span className="aq-level-xp">
-              <Sparkles size={15} />
-              {formatNumber(progress.xp)} XP
-            </span>
+        <div className="academy-practice-modal__hero">
+          <div className="academy-practice-modal__icon">
+            🌱
           </div>
 
-          <div
-            className="aq-level-track"
-            role="progressbar"
-            aria-label="Progres menuju level berikutnya"
-            aria-valuenow={Math.round(rankProgress)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <span style={{ width: `${rankProgress}%` }} />
-          </div>
-
-          <div className="aq-level-footer">
-            <span>
-              {nextRank
-                ? `${nextRank.minXP - progress.xp} XP lagi menuju ${nextRank.title}`
-                : 'Semua level demo telah terbuka'}
-            </span>
-
-            <span>{Math.round(rankProgress)}%</span>
-          </div>
-        </section>
-
-        {/* MISSION SELECTOR */}
-        <section className="aq-missions-section">
-          <div className="aq-section-heading">
-            <div>
-              <span className="aq-eyebrow">LEARNING JOURNEY</span>
-              <h2>Pilih petualanganmu</h2>
-              <p>
-                Setiap misi berisi situasi, objek yang dapat diperiksa,
-                dan keputusan dengan konsekuensi berbeda.
-              </p>
-            </div>
-          </div>
-
-          <div className="aq-mission-grid">
-            {MISSIONS.map((mission) => {
-              const active = mission.id === activeMissionId;
-
-              return (
-                <button
-                  type="button"
-                  key={mission.id}
-                  className={`aq-mission-card ${
-                    active ? 'active' : ''
-                  }`}
-                  onClick={() => selectMission(mission.id)}
-                  aria-pressed={active}
-                >
-                  <div className="aq-mission-card-top">
-                    <span className="aq-mission-number">
-                      {mission.number}
-                    </span>
-
-                    <MissionStatus
-                      completed={progress.completed.includes(
-                        mission.id
-                      )}
-                    />
-                  </div>
-
-                  <span className="aq-mission-category">
-                    {mission.category}
-                  </span>
-
-                  <strong className="aq-mission-title">
-                    {mission.title}
-                  </strong>
-
-                  <span className="aq-mission-subtitle">
-                    {mission.subtitle}
-                  </span>
-
-                  <div className="aq-mission-card-footer">
-                    <span>
-                      <Clock3 size={13} />
-                      {mission.duration}
-                    </span>
-
-                    <span>
-                      <Sparkles size={13} />
-                      {mission.xp} XP
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ACTIVE MISSION */}
-        <section className="aq-active-mission-heading">
           <div>
-            <span className="aq-eyebrow">
-              MISI {activeMission.number} · {activeMission.category}
+            <span>
+              SAATNYA PRAKTIK
             </span>
 
-            <h2>{activeMission.title}</h2>
-
-            <p>{activeMission.subtitle}</p>
+            <h2 id="academy-practice-title">
+              Bawa pelajaran ini ke dunia nyata.
+            </h2>
           </div>
-
-          <button
-            type="button"
-            className="aq-button aq-button-secondary"
-            onClick={replayMission}
-          >
-            <RotateCcw size={15} />
-            Ulangi misi
-          </button>
-        </section>
-
-        {/* GAME + DECISION */}
-        <div className="aq-simulation-layout">
-          {/* PHASER WORLD */}
-          <section className="aq-game-panel">
-            <div className="aq-game-panel-header">
-              <div>
-                <span className="aq-game-live-indicator" />
-                <strong>Dunia simulasi</strong>
-              </div>
-
-              <span className="aq-engine-label">
-                <Gamepad2 size={13} />
-                Powered by Phaser
-              </span>
-            </div>
-
-            <div className="aq-game-stage">
-              <div
-                className="aq-phaser-mount"
-                ref={mountRef}
-                aria-label="Dunia permainan 2D Farm Quest. Pilih petak atau objek untuk memeriksa informasi."
-              />
-            </div>
-
-            <div className="aq-board-instruction">
-              <span className="aq-board-instruction-icon">
-                <Target size={17} />
-              </span>
-
-              <p>
-                <strong>
-                  {inspectionReady
-                    ? 'Area sudah diperiksa'
-                    : 'Jelajahi dunia permainan'}
-                </strong>
-
-                <small>
-                  {inspectionReady
-                    ? 'Baca hasil observasi di bawah, lalu tentukan tindakan.'
-                    : 'Klik petak, input, atau kelompok panen pada peta untuk membuka informasi.'}
-                </small>
-              </p>
-            </div>
-
-            {/* Accessible object selector */}
-            <div className="aq-entity-selector">
-              <div className="aq-entity-selector-heading">
-                <strong>Objek yang bisa diperiksa</strong>
-                <span>
-                  {inspectedEntityIds.length}/{activeMission.entities.length}
-                </span>
-              </div>
-
-              <div className="aq-entity-list">
-                {activeMission.entities.map((entity) => (
-                  <EntityButton
-                    key={entity.id}
-                    entity={entity}
-                    selected={selectedEntityId === entity.id}
-                    inspected={inspectedEntityIds.includes(
-                      entity.id
-                    )}
-                    onClick={() => inspectEntity(entity.id)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Inspection results */}
-            <div className="aq-inspection-panel">
-              <div className="aq-inspection-heading">
-                <span className="aq-inspection-icon">
-                  <SearchIcon />
-                </span>
-
-                <div>
-                  <span className="aq-eyebrow">
-                    HASIL OBSERVASI
-                  </span>
-
-                  <h3>
-                    {selectedEntity
-                      ? selectedEntity.label
-                      : 'Belum ada area diperiksa'}
-                  </h3>
-                </div>
-              </div>
-
-              {selectedEntity ? (
-                <>
-                  <div className="aq-inspection-metric">
-                    <span>{selectedEntity.metricLabel}</span>
-                    <strong>{selectedEntity.metric}</strong>
-                  </div>
-
-                  <p className="aq-inspection-detail">
-                    {selectedEntity.detail}
-                  </p>
-                </>
-              ) : (
-                <p className="aq-inspection-empty">
-                  Pilih salah satu objek di dalam permainan untuk
-                  mengetahui informasi yang tersedia dalam skenario.
-                </p>
-              )}
-
-              <p className="aq-inspection-disclaimer">
-                Data objek merupakan simulasi pembelajaran, bukan
-                pengukuran sensor atau hasil pemeriksaan lapangan.
-              </p>
-            </div>
-          </section>
-
-          {/* DECISION PANEL */}
-          <aside className="aq-decision-panel">
-            <div className="aq-decision-header">
-              <span className="aq-decision-icon">
-                <Lightbulb size={20} />
-              </span>
-
-              <div>
-                <span className="aq-eyebrow">TANTANGAN KEPUTUSAN</span>
-                <h3>Apa yang akan kamu lakukan?</h3>
-              </div>
-            </div>
-
-            <div className="aq-situation-card">
-              <span className="aq-situation-label">
-                SITUASI
-              </span>
-
-              <p>{activeMission.situation}</p>
-
-              <div className="aq-context-chips">
-                {activeMission.context.map((item) => (
-                  <span key={item}>{item}</span>
-                ))}
-              </div>
-            </div>
-
-            <div className="aq-learning-objective">
-              <Target size={15} />
-              <p>
-                <strong>Tujuan misi</strong>
-                <span>{activeMission.objective}</span>
-              </p>
-            </div>
-
-            <div className="aq-choice-heading">
-              <span className="aq-eyebrow">PILIHAN TINDAKAN</span>
-
-              {!inspectionReady && (
-                <span className="aq-unlock-hint">
-                  <LockKeyhole size={12} />
-                  Periksa objek dahulu
-                </span>
-              )}
-            </div>
-
-            <div className="aq-choice-list">
-              {activeMission.choices.map((choice, index) => {
-                const isSelected = selectedChoiceId === choice.id;
-
-                return (
-                  <button
-                    type="button"
-                    key={choice.id}
-                    className={`aq-choice-card ${
-                      isSelected ? 'selected' : ''
-                    }`}
-                    disabled={!canChoose}
-                    onClick={() => chooseDecision(choice)}
-                    aria-pressed={isSelected}
-                  >
-                    <span className="aq-choice-letter">
-                      {String.fromCharCode(65 + index)}
-                    </span>
-
-                    <span className="aq-choice-copy">
-                      <strong>{choice.label}</strong>
-                      <small>{choice.description}</small>
-                    </span>
-
-                    <span className="aq-choice-arrow">
-                      {isSelected ? (
-                        <CheckCircle2 size={17} />
-                      ) : (
-                        <ChevronRight size={16} />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {!inspectionReady && (
-              <div className="aq-locked-message">
-                <LockKeyhole size={15} />
-
-                <p>
-                  Periksa minimal satu objek pada peta sebelum menentukan
-                  keputusan. Biasakan mengumpulkan bukti sebelum bertindak.
-                </p>
-              </div>
-            )}
-
-            {/* Decision feedback */}
-            {selectedChoice && (
-              <section className="aq-feedback-panel">
-                <div className="aq-feedback-header">
-                  <span
-                    className={`aq-feedback-icon aq-feedback-${selectedChoice.outcome}`}
-                  >
-                    {selectedChoice.score >= 80 ? (
-                      <CheckCircle2 size={20} />
-                    ) : (
-                      <Lightbulb size={20} />
-                    )}
-                  </span>
-
-                  <div>
-                    <span className="aq-eyebrow">
-                      FEEDBACK KEPUTUSAN
-                    </span>
-
-                    <h4>
-                      {selectedChoice.score >= 80
-                        ? 'Keputusan yang baik'
-                        : 'Pelajaran dari keputusanmu'}
-                    </h4>
-                  </div>
-                </div>
-
-                <p className="aq-feedback-copy">
-                  {selectedChoice.feedback}
-                </p>
-
-                <div className="aq-score-row">
-                  <div>
-                    <span>Skor keputusan</span>
-                    <strong>{selectedChoice.score}/100</strong>
-                  </div>
-
-                  <div>
-                    <span>XP misi</span>
-                    <strong>
-                      +{missionCompleted ? 0 : selectedChoice.xp} XP
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="aq-consequence-list">
-                  {selectedChoice.consequences.map((item) => (
-                    <div key={item.label}>
-                      <span>{item.label}</span>
-                      <strong>{item.value}</strong>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="aq-learning-takeaway">
-                  <BookOpen size={16} />
-
-                  <p>
-                    <strong>Yang perlu kamu pelajari</strong>
-                    <span>{selectedChoice.learning}</span>
-                  </p>
-                </div>
-
-                <div className="aq-feedback-note">
-                  <ShieldCheck size={15} />
-
-                  <p>
-                    Konsekuensi dan skor ini ditetapkan pada materi simulasi,
-                    bukan hasil prediksi agronomis atau finansial aktual.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  className="aq-button aq-button-primary aq-replay-button"
-                  onClick={replayMission}
-                >
-                  Coba keputusan lain
-                  <RotateCcw size={15} />
-                </button>
-              </section>
-            )}
-          </aside>
         </div>
 
-        {/* ACHIEVEMENTS */}
-        <section className="aq-achievements-section">
-          <div className="aq-section-heading">
-            <div>
-              <span className="aq-eyebrow">PENCAPAIAN</span>
-              <h2>Koleksi badge</h2>
-              <p>
-                Badge dibuka berdasarkan misi yang sudah diselesaikan.
-              </p>
-            </div>
-
-            <span className="aq-achievement-count">
-              {achievements.filter((item) => item.unlocked).length}/
-              {achievements.length} terbuka
-            </span>
-          </div>
-
-          <div className="aq-achievement-grid">
-            {achievements.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <article
-                  className={`aq-achievement-card ${
-                    item.unlocked ? 'unlocked' : 'locked'
-                  }`}
-                  key={item.id}
-                >
-                  <span className="aq-achievement-icon">
-                    {item.unlocked ? (
-                      <Icon size={22} />
-                    ) : (
-                      <LockKeyhole size={20} />
-                    )}
-                  </span>
-
-                  <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.description}</p>
-                  </div>
-
-                  {item.unlocked && (
-                    <CheckCircle2
-                      className="aq-achievement-check"
-                      size={17}
-                    />
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* FOOTER */}
-        <footer className="aq-footer">
-          <div>
-            <span className="aq-footer-mark">
-              <Sprout size={15} />
-            </span>
-
-            <strong>Farm Quest</strong>
-            <span>· Smart Academy TANIWAVE</span>
-          </div>
+        <div className="academy-practice-objective">
+          <strong>
+            Misi praktik
+          </strong>
 
           <p>
-            Progres tersimpan di browser ini. Materi dan konsekuensi masih
-            menggunakan data simulasi.
+            {
+              mission.practiceIntro
+            }
           </p>
-
-          <button
-            type="button"
-            onClick={resetProgress}
-          >
-            <RotateCcw size={13} />
-            Reset progres
-          </button>
-        </footer>
-      </main>
-
-      {notice && (
-        <div className="aq-toast" role="status">
-          <CheckCircle2 size={17} />
-          <span>{notice}</span>
-          <button
-            type="button"
-            onClick={() => setNotice('')}
-            aria-label="Tutup notifikasi"
-          >
-            <X size={15} />
-          </button>
         </div>
-      )}
+
+        <div className="academy-practice-checklist">
+          <div className="academy-practice-checklist__header">
+            <span>
+              CHECKLIST
+            </span>
+
+            <strong>
+              {checked.length}
+              /
+              {total}
+            </strong>
+          </div>
+
+          {mission.practiceChecklist.map(
+            (
+              item,
+              index
+            ) => {
+              const isChecked =
+                checked.includes(
+                  index
+                );
+
+              return (
+                <button
+                  type="button"
+                  key={
+                    item
+                  }
+                  className={`academy-check-item ${
+                    isChecked
+                      ? "is-checked"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    onToggle(
+                      index
+                    )
+                  }
+                >
+                  <span className="academy-check-box">
+                    {isChecked && (
+                      <Check
+                        size={
+                          15
+                        }
+                      />
+                    )}
+                  </span>
+
+                  <span>
+                    {item}
+                  </span>
+                </button>
+              );
+            }
+          )}
+        </div>
+
+        <div className="academy-practice-tip">
+          <Sparkles
+            size={17}
+          />
+
+          <span>
+            Tidak perlu sempurna.
+            Yang penting kamu
+            benar-benar mencoba
+            mengamati dan mencatat.
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="academy-practice-finish"
+          disabled={!complete}
+          onClick={() => {
+            onFinish();
+            onClose();
+          }}
+        >
+          {complete ? (
+            <>
+              <Check
+                size={19}
+              />
+              Praktik Selesai
+            </>
+          ) : (
+            <>
+              <Lock
+                size={17}
+              />
+              Selesaikan checklist
+            </>
+          )}
+        </button>
+      </section>
     </div>
   );
-}
-
-function SearchIcon() {
-  return <Target size={17} />;
 }
