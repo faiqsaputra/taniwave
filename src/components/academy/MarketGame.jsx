@@ -4,6 +4,10 @@ import { useEffect, useRef } from "react";
 const GAME_WIDTH = 960;
 const GAME_HEIGHT = 620;
 
+/* =========================================================
+   COLORS
+========================================================= */
+
 const COLORS = {
   sky: 0xe8f0e7,
   grass: 0xb2c98d,
@@ -29,104 +33,251 @@ const COLORS = {
 
   white: 0xffffff,
   panel: 0xfffcf7,
+  panelDark: 0x263128,
+
   text: 0x263128,
   muted: 0x68736b,
+
+  border: 0xd9cdbb,
 };
 
 /* =========================================================
    MARKET DATA
 ========================================================= */
 
-const MARKET_CHANNELS = {
+const DEFAULT_MARKET_CHANNELS = {
   tengkulak: {
     id: "tengkulak",
     title: "Pembeli Langsung",
+    shortTitle: "Tengkulak",
     subtitle: "Cepat & praktis",
-    price: "Rp18.000",
-    priceNumber: 18000,
+
+    price: 18000,
+
+    /*
+     * Biaya tambahan per kg.
+     */
+    costPerKg: 0,
+
+    /*
+     * Kapasitas pembelian.
+     */
+    capacity: 100,
+
+    /*
+     * Semakin tinggi dependency,
+     * semakin besar ketergantungan pada kanal ini.
+     */
+    dependency: 80,
+
+    risk: 25,
+
     color: COLORS.red,
+
     description:
       "Hasil langsung diambil. Kamu tidak perlu mencari pembeli lain.",
-    risk:
+
+    riskDescription:
       "Harga lebih rendah dan kamu bergantung pada satu pembeli.",
+
+    icon: "🤝",
   },
 
   pasar: {
     id: "pasar",
     title: "Pasar Lokal",
+    shortTitle: "Pasar",
+
     subtitle: "Jual sendiri",
-    price: "Rp21.000",
-    priceNumber: 21000,
+
+    price: 21000,
+
+    /*
+     * Transportasi + biaya lapak sederhana.
+     */
+    costPerKg: 1500,
+
+    capacity: 60,
+
+    dependency: 45,
+
+    risk: 45,
+
     color: COLORS.yellow,
+
     description:
       "Kamu bisa mendapatkan harga lebih baik dengan menjual langsung.",
-    risk:
+
+    riskDescription:
       "Perlu waktu, transportasi, dan tenaga untuk menjual.",
+
+    icon: "🧺",
   },
 
   umkm: {
     id: "umkm",
     title: "UMKM Kuliner",
+    shortTitle: "UMKM",
+
     subtitle: "Pembeli rutin",
-    price: "Rp23.000",
-    priceNumber: 23000,
+
+    price: 23000,
+
+    /*
+     * Sortir + packing + transportasi.
+     */
+    costPerKg: 2500,
+
+    capacity: 40,
+
+    dependency: 30,
+
+    risk: 60,
+
     color: COLORS.green,
+
     description:
       "Pembeli membutuhkan kualitas yang konsisten dan pasokan teratur.",
-    risk:
+
+    riskDescription:
       "Kamu perlu memenuhi kualitas dan menjaga hubungan dengan pembeli.",
+
+    icon: "🍜",
   },
 };
 
-const DECISIONS = [
+/* =========================================================
+   DEFAULT HARVEST
+========================================================= */
+
+const DEFAULT_HARVEST = {
+  crop: "Cabai",
+  total: 100,
+
+  quality: {
+    gradeA: 60,
+    gradeB: 30,
+    gradeC: 10,
+  },
+
+  condition: "Sebagian besar hasil panen masih layak jual.",
+
+  description:
+    "Panen hari ini cukup baik, tetapi kualitas berbeda-beda sehingga perlu disortir sebelum dijual.",
+};
+
+/* =========================================================
+   DECISIONS
+========================================================= */
+
+const DEFAULT_DECISIONS = [
   {
     id: "grade",
-    title:
-      "Sortir dan cari beberapa kanal penjualan",
+
+    title: "Sortir & bagi ke beberapa kanal",
+
     description:
-      "Pisahkan kualitas dan jangan bergantung pada satu pembeli.",
-    score: 100,
+      "Pisahkan kualitas lalu bandingkan beberapa kanal penjualan.",
+
+    strategy: "diversify",
+
+    /*
+     * Distribusi sederhana untuk simulation.
+     *
+     * 40 kg → UMKM
+     * 40 kg → Pasar
+     * 20 kg → Tengkulak
+     */
+    allocation: {
+      tengkulak: 20,
+      pasar: 40,
+      umkm: 40,
+    },
+
+    baseScore: 100,
     xp: 100,
     coins: 40,
+
     feedback:
-      "Kamu tidak hanya mengejar harga tertinggi. Kamu melihat kualitas dan membandingkan beberapa kanal penjualan.",
+      "Kamu tidak hanya mengejar harga tertinggi. Kamu mempertimbangkan kualitas, biaya, kapasitas pembeli, dan beberapa kanal penjualan.",
+
     learning:
-      "Keputusan usaha tani tidak berhenti di produksi. Pasar, kualitas, dan kanal penjualan juga perlu dibaca.",
+      "Petani tidak harus bergantung pada satu pembeli. Membandingkan kanal dapat membantu meningkatkan posisi tawar dan mengurangi risiko.",
   },
 
   {
     id: "hold",
-    title:
-      "Tahan seluruh panen",
+
+    title: "Tahan seluruh panen",
+
     description:
-      "Simpan semua sampai harga naik lagi.",
-    score: 55,
-    xp: 100,
+      "Simpan semua hasil panen sampai harga naik lagi.",
+
+    strategy: "hold",
+
+    allocation: {
+      tengkulak: 0,
+      pasar: 0,
+      umkm: 0,
+    },
+
+    baseScore: 55,
+    xp: 70,
     coins: 15,
+
     feedback:
-      "Menahan panen dapat menjadi pilihan, tetapi ada biaya penyimpanan dan risiko kualitas yang harus dihitung.",
+      "Menahan panen dapat memberi peluang mendapatkan harga lebih tinggi, tetapi penyimpanan memiliki biaya dan risiko kualitas.",
+
     learning:
-      "Setiap strategi pasar punya biaya, risiko, dan batas waktu.",
+      "Harga masa depan belum tentu naik. Menyimpan hasil panen berarti mengambil risiko tambahan.",
   },
 
   {
     id: "sell",
-    title:
-      "Jual semua ke pembeli pertama",
+
+    title: "Jual semua ke pembeli pertama",
+
     description:
-      "Yang penting cepat terjual.",
-    score: 35,
-    xp: 100,
+      "Yang penting hasil panen cepat terjual.",
+
+    strategy: "quick_sell",
+
+    allocation: {
+      tengkulak: 100,
+      pasar: 0,
+      umkm: 0,
+    },
+
+    baseScore: 35,
+    xp: 50,
     coins: 5,
+
     feedback:
-      "Cepat terjual memang mengurangi waktu tunggu, tetapi kamu kehilangan kesempatan membandingkan kanal dan harga.",
+      "Menjual cepat memang praktis, tetapi kamu kehilangan kesempatan membandingkan harga dan mengurangi ketergantungan pada satu pembeli.",
+
     learning:
-      "Bandingkan pilihan sebelum melepas hasil panen.",
+      "Kecepatan menjual bukan satu-satunya ukuran keputusan yang baik. Harga bersih, risiko, dan posisi tawar juga penting.",
   },
 ];
 
 /* =========================================================
-   GAME
+   HELPERS
+========================================================= */
+
+function formatRupiah(value) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(Math.round(value));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+/* =========================================================
+   COMPONENT
 ========================================================= */
 
 export default function MarketGame({
@@ -145,24 +296,74 @@ export default function MarketGame({
       return;
     }
 
+    /* =====================================================
+       MISSION NORMALIZATION
+    ===================================================== */
+
+    const missionData = mission || {};
+
+    const marketChannels = {
+      ...DEFAULT_MARKET_CHANNELS,
+      ...(missionData.marketChannels || {}),
+    };
+
+    const harvest = {
+      ...DEFAULT_HARVEST,
+      ...(missionData.harvest || {}),
+      quality: {
+        ...DEFAULT_HARVEST.quality,
+        ...(missionData.harvest?.quality || {}),
+      },
+    };
+
+    const decisions =
+      missionData.decisions ||
+      DEFAULT_DECISIONS;
+
+    /* =====================================================
+       PHASER SCENE
+    ===================================================== */
+
     class MarketScene extends Phaser.Scene {
       constructor() {
         super({
           key: "MarketScene",
         });
 
+        /* -----------------------------------------------
+           GAME STATE
+        ----------------------------------------------- */
+
+        this.gameState = "OBSERVING";
+
+        /*
+         * OBSERVING
+         * DECISION
+         * CONSEQUENCE
+         * RESULT
+         */
+
         this.observedIds = [];
 
         this.marketObjects = {};
 
-        this.isDecisionPhase = false;
-        this.isResultPhase = false;
-
         this.player = null;
+
         this.popup = null;
+
         this.decisionHint = null;
 
-        this.selectedChannels = [];
+        this.resultPanel = null;
+
+        this.costObject = null;
+
+        this.evidenceCounter = null;
+
+        this.instructionBox = null;
+
+        this.selectedChoice = null;
+
+        this.lastResult = null;
       }
 
       /* =====================================================
@@ -171,12 +372,21 @@ export default function MarketGame({
 
       create() {
         this.createBackground();
+
         this.createMarketEnvironment();
+
         this.createMarketStalls();
+
         this.createHarvestCrates();
+
+        this.createCostStation();
+
         this.createPlayer();
+
         this.createInteractionZones();
+
         this.createHUD();
+
         this.createInstructions();
 
         this.animateEnvironment();
@@ -339,7 +549,7 @@ export default function MarketGame({
 
       createMarketEnvironment() {
         /*
-         * Market roof
+         * Roof
          */
 
         const roof =
@@ -369,7 +579,7 @@ export default function MarketGame({
         roof.setDepth(0);
 
         /*
-         * Market building
+         * Building
          */
 
         this.add
@@ -498,7 +708,7 @@ export default function MarketGame({
         channelId
       ) {
         const channel =
-          MARKET_CHANNELS[
+          marketChannels[
             channelId
           ];
 
@@ -567,7 +777,8 @@ export default function MarketGame({
           this.add.text(
             -75,
             -82,
-            channel.title,
+            channel.shortTitle ||
+              channel.title,
             {
               fontFamily:
                 "Arial",
@@ -584,12 +795,14 @@ export default function MarketGame({
           this.add.text(
             -65,
             -62,
-            channel.price,
+            formatRupiah(
+              channel.price
+            ),
             {
               fontFamily:
                 "Arial",
               fontSize:
-                "16px",
+                "15px",
               fontStyle:
                 "bold",
               color:
@@ -605,9 +818,10 @@ export default function MarketGame({
           this.add.text(
             -16,
             4,
-            this.getChannelIcon(
-              channelId
-            ),
+            channel.icon ||
+              this.getChannelIcon(
+                channelId
+              ),
             {
               fontSize:
                 "28px",
@@ -654,7 +868,7 @@ export default function MarketGame({
       }
 
       /* =====================================================
-         HARVEST CRATES
+         HARVEST
       ===================================================== */
 
       createHarvestCrates() {
@@ -705,7 +919,7 @@ export default function MarketGame({
           .text(
             77,
             482,
-            "HASIL PANEN",
+            `${harvest.total} KG PANEN`,
             {
               fontFamily:
                 "Arial",
@@ -718,6 +932,107 @@ export default function MarketGame({
             }
           )
           .setDepth(6);
+      }
+
+      /* =====================================================
+         COST STATION
+      ===================================================== */
+
+      createCostStation() {
+        const station =
+          this.add.container(
+            830,
+            465
+          );
+
+        const bg =
+          this.add
+            .rectangle(
+              0,
+              0,
+              145,
+              82,
+              COLORS.panel
+            )
+            .setStrokeStyle(
+              2,
+              COLORS.yellow
+            );
+
+        const icon =
+          this.add.text(
+            -55,
+            -27,
+            "🚚",
+            {
+              fontSize:
+                "25px",
+            }
+          );
+
+        const title =
+          this.add.text(
+            -22,
+            -27,
+            "BIAYA",
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "11px",
+              fontStyle:
+                "bold",
+              color:
+                "#263128",
+            }
+          );
+
+        const subtitle =
+          this.add.text(
+            -55,
+            2,
+            "Transport & operasional",
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "9px",
+              color:
+                "#68736B",
+            }
+          );
+
+        const amount =
+          this.add.text(
+            -55,
+            20,
+            "Perlu dihitung",
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "10px",
+              fontStyle:
+                "bold",
+              color:
+                "#D4A017",
+            }
+          );
+
+        station.add([
+          bg,
+          icon,
+          title,
+          subtitle,
+          amount,
+        ]);
+
+        station.setDepth(
+          8
+        );
+
+        this.costObject =
+          station;
       }
 
       /* =====================================================
@@ -817,6 +1132,52 @@ export default function MarketGame({
       ===================================================== */
 
       createInteractionZones() {
+        /*
+         * Harvest
+         */
+
+        const harvestZone =
+          this.add
+            .zone(
+              125,
+              470,
+              170,
+              110
+            )
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        harvestZone.on(
+          "pointerover",
+          () => {
+            this.highlightObject(
+              harvestZone,
+              COLORS.green
+            );
+          }
+        );
+
+        harvestZone.on(
+          "pointerout",
+          () => {
+            this.removeObjectHighlight(
+              harvestZone
+            );
+          }
+        );
+
+        harvestZone.on(
+          "pointerdown",
+          () => {
+            this.inspectHarvest();
+          }
+        );
+
+        /*
+         * Market channels
+         */
+
         this.createMarketZone(
           "tengkulak",
           220
@@ -833,27 +1194,49 @@ export default function MarketGame({
         );
 
         /*
-         * Panen
+         * Cost
          */
 
-        const harvestZone =
+        const costZone =
           this.add
             .zone(
-              125,
-              470,
-              150,
+              830,
+              465,
+              160,
               100
             )
             .setInteractive({
               useHandCursor: true,
             });
 
-        harvestZone.on(
-          "pointerdown",
+        costZone.on(
+          "pointerover",
           () => {
-            this.inspectHarvest();
+            this.highlightObject(
+              costZone,
+              COLORS.yellow
+            );
           }
         );
+
+        costZone.on(
+          "pointerout",
+          () => {
+            this.removeObjectHighlight(
+              costZone
+            );
+          }
+        );
+
+        costZone.on(
+          "pointerdown",
+          () => {
+            this.inspectCost();
+          }
+        );
+
+        this.costObject.zone =
+          costZone;
       }
 
       createMarketZone(
@@ -881,7 +1264,8 @@ export default function MarketGame({
           "pointerover",
           () => {
             if (
-              this.isResultPhase
+              this.gameState ===
+              "RESULT"
             ) {
               return;
             }
@@ -915,26 +1299,74 @@ export default function MarketGame({
         ].zone = zone;
       }
 
-      /* =====================================================
-         INSPECT HARVEST
-      ===================================================== */
-
-      inspectHarvest() {
+      highlightObject(
+        zone,
+        color
+      ) {
         if (
-          this.isResultPhase
+          zone.getData(
+            "highlight"
+          )
         ) {
           return;
         }
 
-        if (
-          !this.observedIds.includes(
-            "stock"
-          )
-        ) {
-          this.observedIds.push(
-            "stock"
+        const highlight =
+          this.add
+            .rectangle(
+              zone.x,
+              zone.y,
+              zone.input.hitArea.width,
+              zone.input.hitArea.height,
+              color,
+              0.08
+            )
+            .setStrokeStyle(
+              2,
+              color,
+              0.5
+            )
+            .setDepth(4);
+
+        zone.setData(
+          "highlight",
+          highlight
+        );
+      }
+
+      removeObjectHighlight(
+        zone
+      ) {
+        const highlight =
+          zone.getData(
+            "highlight"
+          );
+
+        if (highlight) {
+          highlight.destroy();
+
+          zone.setData(
+            "highlight",
+            null
           );
         }
+      }
+
+      /* =====================================================
+         OBSERVATION
+      ===================================================== */
+
+      inspectHarvest() {
+        if (
+          this.gameState !==
+          "OBSERVING"
+        ) {
+          return;
+        }
+
+        this.addEvidence(
+          "stock"
+        );
 
         this.movePlayerTo(
           125,
@@ -952,50 +1384,56 @@ export default function MarketGame({
 
       showHarvestPopup() {
         this.createPopup(
-          125,
-          320,
+          250,
+          420,
           {
             title:
               "HASIL PANEN",
+
             badge:
-              "LAYAK JUAL",
+              `${harvest.total} KG`,
+
             badgeColor:
               COLORS.green,
+
             metric:
               "Kualitas masih baik",
+
             detail:
-              "Sebagian besar hasil panen masih berada dalam kondisi yang dapat dipasarkan.",
+              `Grade A: ${harvest.quality.gradeA} kg • Grade B: ${harvest.quality.gradeB} kg • Grade C: ${harvest.quality.gradeC} kg. ${harvest.description}`,
           }
         );
       }
 
       /* =====================================================
-         INSPECT MARKET
+         MARKET INSPECTION
       ===================================================== */
 
       inspectMarket(
         id
       ) {
         if (
-          this.isResultPhase
+          this.gameState !==
+          "OBSERVING"
         ) {
           return;
         }
 
-        if (
-          !this.observedIds.includes(
-            "market"
-          )
-        ) {
-          this.observedIds.push(
-            "market"
-          );
-        }
-
-        this.movePlayerTo(
+        const item =
           this.marketObjects[
             id
-          ].container.x,
+          ];
+
+        if (!item) {
+          return;
+        }
+
+        this.addEvidence(
+          "market"
+        );
+
+        this.movePlayerTo(
+          item.container.x,
           430
         );
 
@@ -1014,9 +1452,27 @@ export default function MarketGame({
         id
       ) {
         const channel =
-          MARKET_CHANNELS[
+          marketChannels[
             id
           ];
+
+        const estimatedGross =
+          channel.price *
+          Math.min(
+            channel.capacity,
+            harvest.total
+          );
+
+        const estimatedCost =
+          channel.costPerKg *
+          Math.min(
+            channel.capacity,
+            harvest.total
+          );
+
+        const estimatedNet =
+          estimatedGross -
+          estimatedCost;
 
         this.createPopup(
           this.marketObjects[
@@ -1026,14 +1482,18 @@ export default function MarketGame({
           {
             title:
               channel.title,
+
             badge:
               channel.subtitle,
+
             badgeColor:
               channel.color,
+
             metric:
-              channel.price,
+              `${formatRupiah(channel.price)} / kg`,
+
             detail:
-              `${channel.description} ${channel.risk}`,
+              `Kapasitas ${channel.capacity} kg. Biaya sekitar ${formatRupiah(channel.costPerKg)} / kg. Jika seluruh kapasitas digunakan, perkiraan hasil bersih ${formatRupiah(estimatedNet)}.`,
           }
         );
       }
@@ -1044,43 +1504,64 @@ export default function MarketGame({
 
       inspectCost() {
         if (
-          this.isResultPhase
+          this.gameState !==
+          "OBSERVING"
         ) {
           return;
         }
 
-        if (
-          !this.observedIds.includes(
-            "cost"
-          )
-        ) {
-          this.observedIds.push(
-            "cost"
-          );
-        }
-
-        this.createPopup(
-          820,
-          390,
-          {
-            title:
-              "MODAL TERBATAS",
-            badge:
-              "PERHATIKAN BIAYA",
-            badgeColor:
-              COLORS.yellow,
-            metric:
-              "Jangan hanya lihat harga",
-            detail:
-              "Strategi penjualan juga harus memperhitungkan transportasi, waktu, penyimpanan, dan tenaga.",
-          }
+        this.addEvidence(
+          "cost"
         );
+
+        this.showCostPopup();
 
         this.notifyEntity(
           "cost"
         );
 
         this.checkObservationProgress();
+      }
+
+      showCostPopup() {
+        this.createPopup(
+          650,
+          430,
+          {
+            title:
+              "BIAYA OPERASIONAL",
+
+            badge:
+              "JANGAN LIHAT HARGA SAJA",
+
+            badgeColor:
+              COLORS.yellow,
+
+            metric:
+              "Harga jual − biaya = hasil bersih",
+
+            detail:
+              "Setiap kanal membutuhkan biaya yang berbeda. Transportasi, sortir, packing, waktu, dan penyimpanan dapat mengurangi keuntungan.",
+          }
+        );
+      }
+
+      /* =====================================================
+         EVIDENCE
+      ===================================================== */
+
+      addEvidence(
+        id
+      ) {
+        if (
+          !this.observedIds.includes(
+            id
+          )
+        ) {
+          this.observedIds.push(
+            id
+          );
+        }
       }
 
       /* =====================================================
@@ -1094,12 +1575,33 @@ export default function MarketGame({
       ) {
         if (this.popup) {
           this.popup.destroy();
+
+          this.popup =
+            null;
         }
+
+        /*
+         * Keep popup inside screen.
+         */
+
+        const popupX =
+          clamp(
+            x,
+            160,
+            GAME_WIDTH - 160
+          );
+
+        const popupY =
+          clamp(
+            y,
+            175,
+            GAME_HEIGHT - 130
+          );
 
         const popup =
           this.add.container(
-            x,
-            y
+            popupX,
+            popupY
           );
 
         const bg =
@@ -1107,10 +1609,10 @@ export default function MarketGame({
             .rectangle(
               0,
               0,
-              280,
-              140,
+              300,
+              150,
               COLORS.panel,
-              0.98
+              0.99
             )
             .setStrokeStyle(
               2,
@@ -1120,17 +1622,17 @@ export default function MarketGame({
         const badge =
           this.add
             .rectangle(
-              -100,
-              -52,
-              100,
+              -112,
+              -57,
+              105,
               23,
               data.badgeColor
             );
 
         const badgeText =
           this.add.text(
-            -132,
-            -60,
+            -145,
+            -65,
             data.badge,
             {
               fontFamily:
@@ -1146,14 +1648,14 @@ export default function MarketGame({
 
         const title =
           this.add.text(
-            -132,
-            -30,
+            -145,
+            -38,
             data.title,
             {
               fontFamily:
                 "Arial",
               fontSize:
-                "17px",
+                "16px",
               fontStyle:
                 "bold",
               color:
@@ -1163,35 +1665,37 @@ export default function MarketGame({
 
         const metric =
           this.add.text(
-            -132,
-            -4,
+            -145,
+            -11,
             data.metric,
             {
               fontFamily:
                 "Arial",
               fontSize:
-                "13px",
+                "12px",
               fontStyle:
                 "bold",
               color:
-                "#C45A50",
+                this.toHex(
+                  data.badgeColor
+                ),
             }
           );
 
         const detail =
           this.add.text(
-            -132,
-            20,
+            -145,
+            15,
             data.detail,
             {
               fontFamily:
                 "Arial",
               fontSize:
-                "10px",
+                "9px",
               color:
                 "#68736B",
               wordWrap: {
-                width: 245,
+                width: 270,
               },
               lineSpacing: 2,
             }
@@ -1207,32 +1711,42 @@ export default function MarketGame({
         ]);
 
         popup.setDepth(
-          50
+          200
         );
 
         popup.setScale(
-          0.8
+          0.82
         );
 
         this.tweens.add({
           targets:
             popup,
+
           scale: 1,
+
           duration: 180,
-          ease: "Back.Out",
+
+          ease:
+            "Back.Out",
         });
 
         this.popup =
           popup;
 
+        /*
+         * V2 tetap auto-close agar tidak menghalangi
+         * permainan terlalu lama.
+         */
+
         this.time.delayedCall(
-          4500,
+          5000,
           () => {
             if (
               this.popup ===
               popup
             ) {
               popup.destroy();
+
               this.popup =
                 null;
             }
@@ -1247,41 +1761,57 @@ export default function MarketGame({
       notifyEntity(
         id
       ) {
+        const entities = {
+          market: {
+            id: "market",
+
+            label: "Pasar",
+
+            subtitle:
+              "Harga",
+
+            metric:
+              "Harga sedang melemah",
+
+            detail:
+              "Bandingkan beberapa kanal sebelum menjual.",
+          },
+
+          stock: {
+            id: "stock",
+
+            label:
+              "Hasil panen",
+
+            subtitle:
+              "Kualitas",
+
+            metric:
+              `${harvest.total} kg`,
+
+            detail:
+              "Kualitas hasil panen berbeda-beda sehingga perlu diperhatikan sebelum menentukan kanal.",
+          },
+
+          cost: {
+            id: "cost",
+
+            label:
+              "Biaya",
+
+            subtitle:
+              "Operasional",
+
+            metric:
+              "Perlu dihitung",
+
+            detail:
+              "Biaya transportasi, sortir, packing, dan waktu memengaruhi keuntungan bersih.",
+          },
+        };
+
         const entity =
-          {
-            market: {
-              id: "market",
-              label: "Pasar",
-              subtitle: "Harga",
-              metric:
-                "Turun 20%",
-              detail:
-                "Harga sedang melemah. Menjual semuanya pada satu waktu meningkatkan ketergantungan pada harga hari ini.",
-            },
-
-            stock: {
-              id: "stock",
-              label:
-                "Hasil panen",
-              subtitle:
-                "Kualitas",
-              metric:
-                "Layak jual",
-              detail:
-                "Sebagian besar hasil panen masih berada dalam kondisi yang dapat dipasarkan.",
-            },
-
-            cost: {
-              id: "cost",
-              label: "Biaya",
-              subtitle:
-                "Operasional",
-              metric:
-                "Terbatas",
-              detail:
-                "Modal tambahan terbatas sehingga strategi baru harus memperhatikan biaya.",
-            },
-          }[id];
+          entities[id];
 
         if (
           typeof onEntityObserved ===
@@ -1294,34 +1824,31 @@ export default function MarketGame({
       }
 
       /* =====================================================
-         PROGRESS
+         OBSERVATION PROGRESS
       ===================================================== */
 
       checkObservationProgress() {
-        /*
-         * Minimal tiga bukti:
-         * market
-         * stock
-         * cost
-         */
-
         if (
           this.observedIds.length >=
             3 &&
-          !this.isDecisionPhase
+          this.gameState ===
+            "OBSERVING"
         ) {
           this.enterDecisionPhase();
         }
       }
 
       enterDecisionPhase() {
-        this.isDecisionPhase =
-          true;
+        this.gameState =
+          "DECISION";
 
         if (
           this.instructionBox
         ) {
           this.instructionBox.destroy();
+
+          this.instructionBox =
+            null;
         }
 
         if (
@@ -1331,15 +1858,118 @@ export default function MarketGame({
           onObservationComplete({
             observedIds:
               this.observedIds,
+
             complete: true,
           });
         }
 
         this.showDecisionHint();
+
+        this.showEvidenceSummary();
       }
 
       /* =====================================================
-         DECISION
+         EVIDENCE SUMMARY
+      ===================================================== */
+
+      showEvidenceSummary() {
+        const panel =
+          this.add.container(
+            100,
+            105
+          );
+
+        const bg =
+          this.add
+            .rectangle(
+              0,
+              0,
+              190,
+              110,
+              COLORS.panel,
+              0.97
+            )
+            .setStrokeStyle(
+              2,
+              COLORS.green
+            );
+
+        const title =
+          this.add.text(
+            -82,
+            -48,
+            "✓ BUKTI TERKUMPUL",
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "11px",
+              fontStyle:
+                "bold",
+              color:
+                "#263128",
+            }
+          );
+
+        const lines = [
+          "✓ Hasil panen",
+          "✓ Harga kanal",
+          "✓ Biaya operasional",
+        ];
+
+        const evidenceText =
+          this.add.text(
+            -82,
+            -20,
+            lines.join("\n"),
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "10px",
+              color:
+                "#68736B",
+              lineSpacing:
+                5,
+            }
+          );
+
+        panel.add([
+          bg,
+          title,
+          evidenceText,
+        ]);
+
+        panel.setDepth(
+          120
+        );
+
+        this.tweens.add({
+          targets:
+            panel,
+
+          alpha: {
+            from: 0,
+            to: 1,
+          },
+
+          duration: 250,
+        });
+
+        this.time.delayedCall(
+          2800,
+          () => {
+            if (
+              panel.active
+            ) {
+              panel.destroy();
+            }
+          }
+        );
+      }
+
+      /* =====================================================
+         DECISION HINT
       ===================================================== */
 
       showDecisionHint() {
@@ -1430,7 +2060,7 @@ export default function MarketGame({
         ]);
 
         hint.setDepth(
-          60
+          150
         );
 
         this.decisionHint =
@@ -1439,11 +2069,17 @@ export default function MarketGame({
         this.tweens.add({
           targets:
             hint,
+
           y: 100,
+
           duration: 600,
+
           yoyo: true,
+
           repeat: -1,
-          ease: "Sine.InOut",
+
+          ease:
+            "Sine.InOut",
         });
       }
 
@@ -1455,13 +2091,39 @@ export default function MarketGame({
         choice
       ) {
         if (
-          this.isResultPhase
+          this.gameState !==
+          "DECISION"
         ) {
           return;
         }
 
-        this.isResultPhase =
-          true;
+        if (!choice) {
+          return;
+        }
+
+        /*
+         * Find actual decision data.
+         */
+
+        const decision =
+          typeof choice ===
+          "string"
+            ? decisions.find(
+                (item) =>
+                  item.id ===
+                  choice
+              )
+            : choice;
+
+        if (!decision) {
+          return;
+        }
+
+        this.selectedChoice =
+          decision;
+
+        this.gameState =
+          "CONSEQUENCE";
 
         if (
           this.decisionHint
@@ -1472,18 +2134,355 @@ export default function MarketGame({
             null;
         }
 
+        if (
+          this.popup
+        ) {
+          this.popup.destroy();
+
+          this.popup =
+            null;
+        }
+
         this.showStrategyConsequence(
-          choice
+          decision
         );
 
         this.time.delayedCall(
-          1700,
+          1800,
           () => {
             this.showResult(
-              choice
+              decision
             );
           }
         );
+      }
+
+      /* =====================================================
+         SIMULATION ENGINE
+      ===================================================== */
+
+      calculateDecision(
+        choice
+      ) {
+        const allocation =
+          choice.allocation || {
+            tengkulak: 0,
+            pasar: 0,
+            umkm: 0,
+          };
+
+        const totalAllocated =
+          Object.values(
+            allocation
+          ).reduce(
+            (sum, value) =>
+              sum + value,
+            0
+          );
+
+        /*
+         * Revenue
+         */
+
+        let revenue = 0;
+
+        /*
+         * Operational cost
+         */
+
+        let operationalCost = 0;
+
+        /*
+         * Capacity penalty
+         */
+
+        let capacityPenalty = 0;
+
+        Object.entries(
+          allocation
+        ).forEach(
+          ([
+            channelId,
+            quantity,
+          ]) => {
+            const channel =
+              marketChannels[
+                channelId
+              ];
+
+            if (!channel) {
+              return;
+            }
+
+            const sellable =
+              Math.min(
+                quantity,
+                channel.capacity
+              );
+
+            revenue +=
+              sellable *
+              channel.price;
+
+            operationalCost +=
+              sellable *
+              channel.costPerKg;
+
+            if (
+              quantity >
+              channel.capacity
+            ) {
+              capacityPenalty +=
+                (quantity -
+                  channel.capacity) *
+                1000;
+            }
+          }
+        );
+
+        /*
+         * Unsold stock
+         */
+
+        const unsold =
+          Math.max(
+            0,
+            harvest.total -
+              totalAllocated
+          );
+
+        /*
+         * Holding cost for unsold product.
+         */
+
+        const holdingCost =
+          unsold * 500;
+
+        operationalCost +=
+          holdingCost;
+
+        /*
+         * Quick sell has almost no operational cost.
+         */
+
+        /*
+         * Net profit
+         */
+
+        const netProfit =
+          revenue -
+          operationalCost -
+          capacityPenalty;
+
+        /*
+         * Dependency
+         */
+
+        let dependency = 100;
+
+        if (
+          totalAllocated >
+          0
+        ) {
+          let weightedDependency =
+            0;
+
+          Object.entries(
+            allocation
+          ).forEach(
+            ([
+              channelId,
+              quantity,
+            ]) => {
+              const channel =
+                marketChannels[
+                  channelId
+                ];
+
+              if (!channel) {
+                return;
+              }
+
+              weightedDependency +=
+                quantity *
+                channel.dependency;
+            }
+          );
+
+          dependency =
+            weightedDependency /
+            totalAllocated;
+        }
+
+        /*
+         * Risk
+         */
+
+        let risk = 0;
+
+        if (
+          totalAllocated >
+          0
+        ) {
+          let weightedRisk = 0;
+
+          Object.entries(
+            allocation
+          ).forEach(
+            ([
+              channelId,
+              quantity,
+            ]) => {
+              const channel =
+                marketChannels[
+                  channelId
+                ];
+
+              if (!channel) {
+                return;
+              }
+
+              weightedRisk +=
+                quantity *
+                channel.risk;
+            }
+          );
+
+          risk =
+            weightedRisk /
+            totalAllocated;
+        }
+
+        /*
+         * Diversification
+         */
+
+        const activeChannels =
+          Object.values(
+            allocation
+          ).filter(
+            (value) =>
+              value > 0
+          ).length;
+
+        let diversification =
+          activeChannels === 3
+            ? 100
+            : activeChannels === 2
+            ? 70
+            : 25;
+
+        /*
+         * Profit score
+         */
+
+        const maxPotentialProfit =
+          harvest.total *
+            Math.max(
+              ...Object.values(
+                marketChannels
+              ).map(
+                (channel) =>
+                  channel.price -
+                  channel.costPerKg
+              )
+            );
+
+        const profitRatio =
+          maxPotentialProfit >
+          0
+            ? netProfit /
+              maxPotentialProfit
+            : 0;
+
+        const profitScore =
+          clamp(
+            profitRatio * 100,
+            0,
+            100
+          );
+
+        /*
+         * Final score
+         */
+
+        let score =
+          profitScore * 0.4 +
+          diversification * 0.25 +
+          (100 - dependency) *
+            0.2 +
+          (100 - risk) *
+            0.15;
+
+        /*
+         * Strategy-specific adjustment.
+         */
+
+        if (
+          choice.strategy ===
+          "hold"
+        ) {
+          score -= 10;
+        }
+
+        if (
+          choice.strategy ===
+          "quick_sell"
+        ) {
+          score -= 15;
+        }
+
+        score = clamp(
+          Math.round(score),
+          0,
+          100
+        );
+
+        /*
+         * XP
+         */
+
+        const xpMultiplier =
+          score >= 85
+            ? 1
+            : score >= 65
+            ? 0.85
+            : 0.7;
+
+        const xp = Math.round(
+          choice.xp *
+            xpMultiplier
+        );
+
+        /*
+         * Coins
+         */
+
+        const coins = Math.max(
+          5,
+          Math.round(
+            choice.coins *
+              (score / 100)
+          )
+        );
+
+        return {
+          revenue,
+          operationalCost,
+          capacityPenalty,
+          holdingCost,
+          netProfit,
+          unsold,
+          dependency,
+          risk,
+          diversification,
+          profitScore,
+          score,
+          xp,
+          coins,
+          totalAllocated,
+          activeChannels,
+        };
       }
 
       /* =====================================================
@@ -1494,32 +2493,34 @@ export default function MarketGame({
         choice
       ) {
         if (
-          choice.id ===
-          "grade"
+          choice.strategy ===
+          "diversify"
         ) {
           this.animateGradeStrategy();
+          return;
         }
 
         if (
-          choice.id ===
+          choice.strategy ===
           "hold"
         ) {
           this.animateHoldStrategy();
+          return;
         }
 
         if (
-          choice.id ===
-          "sell"
+          choice.strategy ===
+          "quick_sell"
         ) {
           this.animateSellStrategy();
         }
       }
 
-      animateGradeStrategy() {
-        /*
-         * Highlight multiple stalls
-         */
+      /* =====================================================
+         DIVERSIFICATION
+      ===================================================== */
 
+      animateGradeStrategy() {
         [
           "pasar",
           "umkm",
@@ -1533,11 +2534,17 @@ export default function MarketGame({
             this.tweens.add({
               targets:
                 item.container,
+
               scale: 1.08,
+
               duration: 400,
+
               yoyo: true,
+
               repeat: 1,
-              ease: "Back.Out",
+
+              ease:
+                "Back.Out",
             });
           }
         );
@@ -1550,22 +2557,103 @@ export default function MarketGame({
         this.createFloatingText(
           480,
           290,
-          "SORTIR + BANDINKAN",
+          "SORTIR + BANDINGKAN",
           COLORS.green
         );
+
+        this.createAllocationLabels();
       }
+
+      createAllocationLabels() {
+        const allocation =
+          this.selectedChoice
+            ?.allocation;
+
+        if (!allocation) {
+          return;
+        }
+
+        Object.entries(
+          allocation
+        ).forEach(
+          ([
+            channelId,
+            quantity,
+          ]) => {
+            if (
+              quantity <=
+              0
+            ) {
+              return;
+            }
+
+            const item =
+              this.marketObjects[
+                channelId
+              ];
+
+            if (!item) {
+              return;
+            }
+
+            const label =
+              this.add
+                .text(
+                  item.container.x,
+                  400,
+                  `${quantity} kg`,
+                  {
+                    fontFamily:
+                      "Arial",
+                    fontSize:
+                      "11px",
+                    fontStyle:
+                      "bold",
+                    color:
+                      "#FFFFFF",
+                    backgroundColor:
+                      "#263128",
+                    padding: {
+                      left: 7,
+                      right: 7,
+                      top: 4,
+                      bottom: 4,
+                    },
+                  }
+                )
+                .setOrigin(
+                  0.5
+                )
+                .setDepth(
+                  90
+                );
+
+            this.tweens.add({
+              targets:
+                label,
+
+              y: 375,
+
+              duration: 800,
+
+              ease:
+                "Cubic.Out",
+            });
+          }
+        );
+      }
+
+      /* =====================================================
+         HOLD
+      ===================================================== */
 
       animateHoldStrategy() {
         this.createFloatingText(
           480,
           290,
-          "TUNGGU HARGA",
+          "TAHAN PANEN",
           COLORS.yellow
         );
-
-        /*
-         * Crate gets highlighted
-         */
 
         const crate =
           this.add
@@ -1586,20 +2674,31 @@ export default function MarketGame({
         this.tweens.add({
           targets:
             crate,
+
           alpha: 0.1,
+
           duration: 500,
+
           yoyo: true,
+
           repeat: 2,
-          onComplete: () =>
-            crate.destroy(),
+
+          onComplete:
+            () =>
+              crate.destroy(),
         });
+
+        this.createWarningParticles(
+          125,
+          470
+        );
       }
 
-      animateSellStrategy() {
-        /*
-         * First stall becomes highlighted
-         */
+      /* =====================================================
+         QUICK SELL
+      ===================================================== */
 
+      animateSellStrategy() {
         const stall =
           this.marketObjects[
             "tengkulak"
@@ -1608,11 +2707,17 @@ export default function MarketGame({
         this.tweens.add({
           targets:
             stall.container,
+
           scale: 1.1,
+
           duration: 350,
+
           yoyo: true,
+
           repeat: 2,
-          ease: "Back.Out",
+
+          ease:
+            "Back.Out",
         });
 
         this.createFloatingText(
@@ -1647,31 +2752,49 @@ export default function MarketGame({
               {
                 fontFamily:
                   "Arial",
+
                 fontSize:
                   "16px",
+
                 fontStyle:
                   "bold",
+
                 color:
-                  this.toHex(color),
+                  this.toHex(
+                    color
+                  ),
+
                 stroke:
                   "#FFFFFF",
+
                 strokeThickness:
                   5,
               }
             )
-            .setOrigin(0.5)
-            .setDepth(80);
+            .setOrigin(
+              0.5
+            )
+            .setDepth(
+              180
+            );
 
         this.tweens.add({
           targets:
             label,
+
           y:
             y - 45,
+
           alpha: 0,
+
           duration: 1300,
-          ease: "Cubic.Out",
-          onComplete: () =>
-            label.destroy(),
+
+          ease:
+            "Cubic.Out",
+
+          onComplete:
+            () =>
+              label.destroy(),
         });
       }
 
@@ -1682,7 +2805,10 @@ export default function MarketGame({
           "#" +
           color
             .toString(16)
-            .padStart(6, "0")
+            .padStart(
+              6,
+              "0"
+            )
         );
       }
 
@@ -1710,33 +2836,40 @@ export default function MarketGame({
             );
 
           particle.setDepth(
-            70
+            170
           );
 
           this.tweens.add({
             targets:
               particle,
+
             x:
               x +
               Phaser.Math.Between(
                 -100,
                 100
               ),
+
             y:
               y +
               Phaser.Math.Between(
                 -70,
                 30
               ),
+
             alpha: 0,
+
             scale: 0,
+
             duration:
               Phaser.Math.Between(
                 500,
                 950
               ),
-            onComplete: () =>
-              particle.destroy(),
+
+            onComplete:
+              () =>
+                particle.destroy(),
           });
         }
       }
@@ -1762,28 +2895,34 @@ export default function MarketGame({
             );
 
           particle.setDepth(
-            70
+            170
           );
 
           this.tweens.add({
             targets:
               particle,
+
             x:
               x +
               Phaser.Math.Between(
                 -60,
                 60
               ),
+
             y:
               y +
               Phaser.Math.Between(
                 -50,
                 20
               ),
+
             alpha: 0,
+
             duration: 700,
-            onComplete: () =>
-              particle.destroy(),
+
+            onComplete:
+              () =>
+                particle.destroy(),
           });
         }
       }
@@ -1795,30 +2934,401 @@ export default function MarketGame({
       showResult(
         choice
       ) {
+        const simulation =
+          this.calculateDecision(
+            choice
+          );
+
         const result = {
           choice,
+
           observedIds:
             this.observedIds,
+
           score:
-            choice.score,
-          xp: choice.xp,
+            simulation.score,
+
+          xp:
+            simulation.xp,
+
           coins:
-            choice.coins,
+            simulation.coins,
+
+          simulation,
         };
+
+        this.lastResult =
+          result;
+
+        this.gameState =
+          "RESULT";
+
+        this.showResultPanel(
+          result
+        );
 
         if (
           typeof onResult ===
           "function"
         ) {
-          onResult(result);
+          onResult(
+            result
+          );
         }
 
         if (
           typeof onComplete ===
           "function"
         ) {
-          onComplete(result);
+          onComplete(
+            result
+          );
         }
+      }
+
+      /* =====================================================
+         RESULT PANEL
+      ===================================================== */
+
+      showResultPanel(
+        result
+      ) {
+        if (
+          this.resultPanel
+        ) {
+          this.resultPanel.destroy();
+        }
+
+        const {
+          choice,
+          simulation,
+        } = result;
+
+        const panel =
+          this.add.container(
+            480,
+            350
+          );
+
+        const bg =
+          this.add
+            .rectangle(
+              0,
+              0,
+              570,
+              350,
+              COLORS.panel,
+              0.99
+            )
+            .setStrokeStyle(
+              3,
+              this.getScoreColor(
+                simulation.score
+              )
+            );
+
+        const title =
+          this.add.text(
+            -250,
+            -155,
+            "HASIL KEPUTUSANMU",
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "20px",
+              fontStyle:
+                "bold",
+              color:
+                "#263128",
+            }
+          );
+
+        const strategy =
+          this.add.text(
+            -250,
+            -125,
+            choice.title,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "11px",
+              color:
+                "#68736B",
+            }
+          );
+
+        /*
+         * Score
+         */
+
+        const score =
+          this.add.text(
+            150,
+            -140,
+            `${simulation.score}`,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "38px",
+              fontStyle:
+                "bold",
+              color:
+                this.toHex(
+                  this.getScoreColor(
+                    simulation.score
+                  )
+                ),
+            }
+          );
+
+        const scoreLabel =
+          this.add.text(
+            150,
+            -98,
+            "SKOR",
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "9px",
+              fontStyle:
+                "bold",
+              color:
+                "#68736B",
+            }
+          );
+
+        /*
+         * Financial summary
+         */
+
+        const financialBg =
+          this.add
+            .rectangle(
+              0,
+              -35,
+              500,
+              105,
+              COLORS.greenSoft
+            )
+            .setStrokeStyle(
+              1,
+              COLORS.green
+            );
+
+        const revenueText =
+          this.add.text(
+            -225,
+            -65,
+            `Pendapatan  ${formatRupiah(
+              simulation.revenue
+            )}`,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "11px",
+              color:
+                "#263128",
+            }
+          );
+
+        const costText =
+          this.add.text(
+            -225,
+            -40,
+            `Biaya          ${formatRupiah(
+              simulation.operationalCost
+            )}`,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "11px",
+              color:
+                "#263128",
+            }
+          );
+
+        const profitText =
+          this.add.text(
+            -225,
+            -15,
+            `Profit bersih  ${formatRupiah(
+              simulation.netProfit
+            )}`,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "13px",
+              fontStyle:
+                "bold",
+              color:
+                "#263128",
+            }
+          );
+
+        /*
+         * Risk
+         */
+
+        const riskText =
+          this.add.text(
+            -225,
+            45,
+            `Risiko pasar: ${this.getRiskLabel(
+              simulation.risk
+            )}`,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "10px",
+              color:
+                "#263128",
+            }
+          );
+
+        const dependencyText =
+          this.add.text(
+            15,
+            45,
+            `Ketergantungan: ${this.getRiskLabel(
+              simulation.dependency
+            )}`,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "10px",
+              color:
+                "#263128",
+            }
+          );
+
+        /*
+         * Learning
+         */
+
+        const feedback =
+          this.add.text(
+            -225,
+            88,
+            choice.feedback,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "10px",
+              color:
+                "#68736B",
+              wordWrap: {
+                width: 450,
+              },
+              lineSpacing:
+                2,
+            }
+          );
+
+        /*
+         * Reward
+         */
+
+        const reward =
+          this.add.text(
+            -225,
+            140,
+            `+${simulation.xp} XP     +${simulation.coins} COIN`,
+            {
+              fontFamily:
+                "Arial",
+              fontSize:
+                "13px",
+              fontStyle:
+                "bold",
+              color:
+                "#D4A017",
+            }
+          );
+
+        panel.add([
+          bg,
+          title,
+          strategy,
+          score,
+          scoreLabel,
+          financialBg,
+          revenueText,
+          costText,
+          profitText,
+          riskText,
+          dependencyText,
+          feedback,
+          reward,
+        ]);
+
+        panel.setDepth(
+          300
+        );
+
+        panel.setScale(
+          0.8
+        );
+
+        this.tweens.add({
+          targets:
+            panel,
+
+          scale: 1,
+
+          duration: 350,
+
+          ease:
+            "Back.Out",
+        });
+
+        this.resultPanel =
+          panel;
+      }
+
+      getScoreColor(
+        score
+      ) {
+        if (
+          score >= 80
+        ) {
+          return COLORS.green;
+        }
+
+        if (
+          score >= 60
+        ) {
+          return COLORS.yellow;
+        }
+
+        return COLORS.red;
+      }
+
+      getRiskLabel(
+        value
+      ) {
+        if (
+          value <= 35
+        ) {
+          return "RENDAH";
+        }
+
+        if (
+          value <= 65
+        ) {
+          return "SEDANG";
+        }
+
+        return "TINGGI";
       }
 
       /* =====================================================
@@ -1863,9 +3373,13 @@ export default function MarketGame({
         this.tweens.add({
           targets:
             item.highlight,
+
           alpha: 0.16,
+
           duration: 650,
+
           yoyo: true,
+
           repeat: -1,
         });
       }
@@ -1898,17 +3412,24 @@ export default function MarketGame({
         x,
         y
       ) {
-        if (!this.player) {
+        if (
+          !this.player
+        ) {
           return;
         }
 
         this.tweens.add({
           targets:
             this.player,
+
           x,
+
           y,
+
           duration: 500,
-          ease: "Sine.Out",
+
+          ease:
+            "Sine.Out",
         });
       }
 
@@ -1926,7 +3447,9 @@ export default function MarketGame({
             COLORS.text,
             0.95
           )
-          .setDepth(100);
+          .setDepth(
+            100
+          );
 
         this.add
           .text(
@@ -1936,15 +3459,20 @@ export default function MarketGame({
             {
               fontFamily:
                 "Arial",
+
               fontSize:
                 "16px",
+
               fontStyle:
                 "bold",
+
               color:
                 "#FFFFFF",
             }
           )
-          .setDepth(101);
+          .setDepth(
+            101
+          );
 
         this.add
           .text(
@@ -1954,13 +3482,17 @@ export default function MarketGame({
             {
               fontFamily:
                 "Arial",
+
               fontSize:
                 "10px",
+
               color:
                 "#DCE8D8",
             }
           )
-          .setDepth(101);
+          .setDepth(
+            101
+          );
 
         this.evidenceCounter =
           this.add
@@ -1971,15 +3503,20 @@ export default function MarketGame({
               {
                 fontFamily:
                   "Arial",
+
                 fontSize:
                   "13px",
+
                 fontStyle:
                   "bold",
+
                 color:
                   "#FFFFFF",
               }
             )
-            .setDepth(101);
+            .setDepth(
+              101
+            );
       }
 
       /* =====================================================
@@ -2005,19 +3542,21 @@ export default function MarketGame({
             )
             .setStrokeStyle(
               1,
-              0xd9cdbb
+              COLORS.border
             );
 
         const text =
           this.add.text(
             -295,
             -10,
-            "👆 Amati hasil panen dan beberapa kanal penjualan sebelum memilih strategi.",
+            "👆 Amati hasil panen, kanal penjualan, dan biaya sebelum memilih strategi.",
             {
               fontFamily:
                 "Arial",
+
               fontSize:
                 "12px",
+
               color:
                 "#263128",
             }
@@ -2037,7 +3576,7 @@ export default function MarketGame({
       }
 
       /* =====================================================
-         ANIMATION
+         ENVIRONMENT ANIMATION
       ===================================================== */
 
       animateEnvironment() {
@@ -2051,15 +3590,21 @@ export default function MarketGame({
             this.tweens.add({
               targets:
                 item.container,
+
               y:
                 item.container.y -
                 2,
+
               duration:
                 1200 +
                 index * 100,
+
               yoyo: true,
+
               repeat: -1,
-              ease: "Sine.InOut",
+
+              ease:
+                "Sine.InOut",
             });
           }
         );
@@ -2079,6 +3624,10 @@ export default function MarketGame({
         }
       }
     }
+
+    /* =======================================================
+       PHASER CONFIG
+    ======================================================= */
 
     const config = {
       type: Phaser.AUTO,
@@ -2114,18 +3663,14 @@ export default function MarketGame({
           GAME_HEIGHT,
       },
 
-      physics: {
-        default: "arcade",
-
-        arcade: {
-          debug: false,
-        },
-      },
-
       scene: [
         MarketScene,
       ],
     };
+
+    /* =======================================================
+       CREATE GAME
+    ======================================================= */
 
     const game =
       new Phaser.Game(
@@ -2135,11 +3680,17 @@ export default function MarketGame({
     gameRef.current =
       game;
 
-    /*
-     * Public API untuk Academy.jsx
-     */
+    /* =======================================================
+       PUBLIC API
+    ======================================================= */
 
     game.marketGame = {
+      /*
+       * Generic inspection API.
+       *
+       * Compatible dengan Academy.jsx lama.
+       */
+
       inspect: (
         entityId
       ) => {
@@ -2168,15 +3719,36 @@ export default function MarketGame({
           return;
         }
 
+        if (
+          marketChannels[
+            entityId
+          ]
+        ) {
+          scene.inspectMarket(
+            entityId
+          );
+          return;
+        }
+
         /*
-         * Default:
-         * market
+         * Backward compatibility:
+         * jika Academy lama mengirim
+         * "market", gunakan UMKM.
          */
 
-        scene.inspectMarket(
-          "umkm"
-        );
+        if (
+          entityId ===
+          "market"
+        ) {
+          scene.inspectMarket(
+            "umkm"
+          );
+        }
       },
+
+      /*
+       * Inspect specific market channel.
+       */
 
       inspectMarket: (
         channelId
@@ -2195,6 +3767,14 @@ export default function MarketGame({
         );
       },
 
+      /*
+       * Choose decision.
+       *
+       * Bisa menerima:
+       * - object decision
+       * - string ID
+       */
+
       choose: (
         choice
       ) => {
@@ -2212,6 +3792,10 @@ export default function MarketGame({
         );
       },
 
+      /*
+       * Replay game.
+       */
+
       replay: () => {
         const scene =
           game.scene.getScene(
@@ -2224,7 +3808,53 @@ export default function MarketGame({
 
         scene.scene.restart();
       },
+
+      /*
+       * Exit.
+       */
+
+      exit: () => {
+        if (
+          typeof onExit ===
+          "function"
+        ) {
+          onExit();
+        }
+      },
+
+      /*
+       * Get current game state.
+       */
+
+      getState: () => {
+        const scene =
+          game.scene.getScene(
+            "MarketScene"
+          );
+
+        if (!scene) {
+          return null;
+        }
+
+        return {
+          state:
+            scene.gameState,
+
+          observedIds:
+            scene.observedIds,
+
+          selectedChoice:
+            scene.selectedChoice,
+
+          result:
+            scene.lastResult,
+        };
+      },
     };
+
+    /* =======================================================
+       CLEANUP
+    ======================================================= */
 
     return () => {
       if (
@@ -2239,6 +3869,11 @@ export default function MarketGame({
       }
     };
   }, [
+    /*
+     * Sengaja mempertahankan dependency ini agar
+     * perubahan mission/callback dapat membuat instance
+     * baru ketika diperlukan.
+     */
     mission,
     onEntityObserved,
     onObservationComplete,
@@ -2253,8 +3888,10 @@ export default function MarketGame({
       className="market-game-container"
       style={{
         width: "100%",
-        minHeight: GAME_HEIGHT,
-        overflow: "hidden",
+        minHeight:
+          GAME_HEIGHT,
+        overflow:
+          "hidden",
         borderRadius: 20,
       }}
     />

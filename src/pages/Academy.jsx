@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,7 +30,6 @@ import BibitGame from "../components/academy/BibitGame";
 import MarketGame from "../components/academy/MarketGame";
 
 import "../css/Academy.css";
- 
 
 /* =========================================================
    MISSIONS
@@ -338,11 +344,10 @@ export const MISSIONS = [
 ];
 
 /* =========================================================
-   LOCAL STORAGE
+   LOCAL PROGRESS
 ========================================================= */
 
-const STORAGE_KEY =
-  "taniwave-smart-academy-v2";
+const STORAGE_KEY = "taniwave-smart-academy-v2";
 
 const defaultProgress = {
   xp: 0,
@@ -351,10 +356,6 @@ const defaultProgress = {
   bestScores: {},
   practices: {},
 };
-
-/* =========================================================
-   HELPERS
-========================================================= */
 
 function loadProgress() {
   const fallback = {
@@ -369,26 +370,50 @@ function loadProgress() {
       return fallback;
     }
 
-    const saved = window.localStorage.getItem(STORAGE_KEY);
+    const saved =
+      window.localStorage.getItem(
+        STORAGE_KEY
+      );
 
     if (!saved) {
       return fallback;
     }
 
-    const parsed = JSON.parse(saved);
+    const parsed =
+      JSON.parse(saved);
 
     return {
       ...fallback,
       ...parsed,
-      xp: Number.isFinite(parsed?.xp) ? parsed.xp : 0,
-      coins: Number.isFinite(parsed?.coins) ? parsed.coins : 0,
-      completed: Array.isArray(parsed?.completed) ? parsed.completed : [],
+
+      xp:
+        Number.isFinite(parsed?.xp)
+          ? parsed.xp
+          : 0,
+
+      coins:
+        Number.isFinite(parsed?.coins)
+          ? parsed.coins
+          : 0,
+
+      completed:
+        Array.isArray(
+          parsed?.completed
+        )
+          ? parsed.completed
+          : [],
+
       bestScores:
-        parsed?.bestScores && typeof parsed.bestScores === "object"
+        parsed?.bestScores &&
+        typeof parsed.bestScores ===
+          "object"
           ? parsed.bestScores
           : {},
+
       practices:
-        parsed?.practices && typeof parsed.practices === "object"
+        parsed?.practices &&
+        typeof parsed.practices ===
+          "object"
           ? parsed.practices
           : {},
     };
@@ -399,14 +424,19 @@ function loadProgress() {
 
 function saveProgress(progress) {
   try {
-    if (typeof window === "undefined") return;
+    if (
+      typeof window ===
+      "undefined"
+    ) {
+      return;
+    }
 
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify(progress)
     );
   } catch {
-    // Storage can be unavailable in private mode or restricted browsers.
+    // Browser storage tidak tersedia.
   }
 }
 
@@ -414,13 +444,15 @@ function getDifficultyClass(
   difficulty
 ) {
   if (
-    difficulty === "medium"
+    difficulty ===
+    "medium"
   ) {
     return "academy-difficulty academy-difficulty--medium";
   }
 
   if (
-    difficulty === "hard"
+    difficulty ===
+    "hard"
   ) {
     return "academy-difficulty academy-difficulty--hard";
   }
@@ -429,7 +461,7 @@ function getDifficultyClass(
 }
 
 /* =========================================================
-   COMPONENT
+   ACADEMY
 ========================================================= */
 
 export default function Academy() {
@@ -473,8 +505,11 @@ export default function Academy() {
     setShowResetConfirm,
   ] = useState(false);
 
+  const completionHandledRef =
+    useRef(false);
+
   /* =======================================================
-     DERIVED
+     DERIVED STATE
   ======================================================= */
 
   const completedCount =
@@ -486,34 +521,6 @@ export default function Academy() {
   const totalCoins =
     progress.coins;
 
-  const practiceCompleted = Boolean(
-    activeMission && progress.practices?.[activeMission.id]
-  );
-
-  const observationTarget =
-    activeMission?.id === "harga-pasar" ? 3 : 2;
-
-  const visibleObservedCount = Math.min(
-    observedEntities.length,
-    observationTarget
-  );
-
-  const academyLevel =
-    Math.floor(totalXP / 300) + 1;
-
-  const currentLevelXP =
-    totalXP -
-    (academyLevel - 1) * 300;
-
-  const levelProgress =
-    Math.min(
-      100,
-      Math.round(
-        (currentLevelXP / 300) *
-          100
-      )
-    );
-
   const completedMissionIds =
     useMemo(
       () =>
@@ -523,221 +530,642 @@ export default function Academy() {
       [progress.completed]
     );
 
+  const practiceCompleted =
+    Boolean(
+      activeMission &&
+        progress.practices?.[
+          activeMission.id
+        ]
+    );
+
+  /*
+   * MarketGame V2 membutuhkan
+   * 3 bukti observasi.
+   *
+   * Mission lain menggunakan 2.
+   */
+  const observationTarget =
+    activeMission?.id ===
+    "harga-pasar"
+      ? 3
+      : 2;
+
+  const visibleObservedCount =
+    Math.min(
+      observedEntities.length,
+      observationTarget
+    );
+
+  /*
+   * Setiap 300 XP naik 1 level.
+   */
+  const academyLevel =
+    Math.floor(
+      totalXP / 300
+    ) + 1;
+
+  const currentLevelXP =
+    totalXP -
+    (academyLevel - 1) *
+      300;
+
+  const levelProgress =
+    Math.min(
+      100,
+      Math.round(
+        (currentLevelXP /
+          300) *
+          100
+      )
+    );
+
   /* =======================================================
-     PERSIST
+     PERSIST LOCAL
   ======================================================= */
 
   useEffect(() => {
-    saveProgress(progress);
+    saveProgress(
+      progress
+    );
   }, [progress]);
 
   /* =======================================================
-     START MISSION
+     OPEN MISSION
   ======================================================= */
 
-  const openMission = useCallback((mission) => {
-    setActiveMission(mission);
-    setGameStarted(false);
-    setGameResult(null);
-    setPracticeMode(false);
-    setPracticeChecked([]);
-    setObservedEntities([]);
-  }, []);
+  const openMission =
+    useCallback(
+      (mission) => {
+        if (!mission) {
+          return;
+        }
 
-  const startGame = useCallback(() => {
-    setGameStarted(true);
-    setGameResult(null);
-    setPracticeMode(false);
-    setPracticeChecked([]);
-    setObservedEntities([]);
-  }, []);
+        completionHandledRef.current =
+          false;
 
-  const closeMission = useCallback(() => {
-    setActiveMission(null);
-    setGameStarted(false);
-    setGameResult(null);
-    setPracticeMode(false);
-    setPracticeChecked([]);
-    setObservedEntities([]);
-  }, []);
+        setActiveMission(
+          mission
+        );
+
+        setGameStarted(
+          false
+        );
+
+        setGameResult(
+          null
+        );
+
+        setPracticeMode(
+          false
+        );
+
+        setPracticeChecked(
+          []
+        );
+
+        setObservedEntities(
+          []
+        );
+      },
+      []
+    );
 
   /* =======================================================
-     GAME EVENTS
-     Stable callbacks prevent Phaser from being destroyed and
-     recreated every time the player inspects an object.
+     START GAME
   ======================================================= */
 
-  const handleEntityObserved = useCallback((entity) => {
-    if (!entity?.id) return;
+  const startGame =
+    useCallback(
+      () => {
+        if (!activeMission) {
+          return;
+        }
 
-    setObservedEntities((prev) => {
-      if (prev.some((item) => item.id === entity.id)) {
-        return prev;
-      }
+        completionHandledRef.current =
+          false;
 
-      return [...prev, entity];
-    });
-  }, []);
+        setGameStarted(
+          true
+        );
 
-  const handleObservationComplete = useCallback(() => {
-    // Reserved for observation-stage feedback in a future iteration.
-  }, []);
+        setGameResult(
+          null
+        );
 
-  const handleGameResult = useCallback((result) => {
-    setGameResult(result ?? null);
-  }, []);
+        setPracticeMode(
+          false
+        );
 
-  const handleGameComplete = useCallback((result = {}) => {
-    if (!activeMission) return;
+        setPracticeChecked(
+          []
+        );
 
-    const mission = activeMission;
-    const safeScore = Number.isFinite(result.score) ? result.score : 0;
-    const earnedXP = Number.isFinite(result.xp)
-      ? result.xp
-      : (mission.xp ?? 0);
-    const earnedCoins = Number.isFinite(result.coins)
-      ? result.coins
-      : 0;
+        setObservedEntities(
+          []
+        );
+      },
+      [activeMission]
+    );
 
-    setProgress((prev) => {
-      const alreadyCompleted = prev.completed.includes(mission.id);
-      const oldBest = prev.bestScores[mission.id] ?? 0;
-      const bestScore = Math.max(oldBest, safeScore);
+  /* =======================================================
+     CLOSE MISSION
+  ======================================================= */
 
-      // XP and coins are awarded only on the first completion.
-      if (alreadyCompleted) {
-        if (bestScore === oldBest) return prev;
+  const closeMission =
+    useCallback(
+      () => {
+        completionHandledRef.current =
+          false;
 
-        return {
-          ...prev,
-          bestScores: {
-            ...prev.bestScores,
-            [mission.id]: bestScore,
-          },
-        };
-      }
+        setActiveMission(
+          null
+        );
 
-      return {
-        ...prev,
-        xp: prev.xp + earnedXP,
-        coins: prev.coins + earnedCoins,
-        completed: [...prev.completed, mission.id],
-        bestScores: {
-          ...prev.bestScores,
-          [mission.id]: bestScore,
-        },
-      };
-    });
+        setGameStarted(
+          false
+        );
 
-    setGameResult({
-      ...result,
-      score: safeScore,
-      xp: earnedXP,
-      coins: earnedCoins,
-    });
-  }, [activeMission]);
+        setGameResult(
+          null
+        );
+
+        setPracticeMode(
+          false
+        );
+
+        setPracticeChecked(
+          []
+        );
+
+        setObservedEntities(
+          []
+        );
+
+        requestAnimationFrame(
+          () => {
+            window.scrollTo({
+              top: 0,
+              behavior:
+                "smooth",
+            });
+          }
+        );
+      },
+      []
+    );
+
+  /* =======================================================
+     ENTITY OBSERVATION
+  ======================================================= */
+
+  const handleEntityObserved =
+    useCallback(
+      (entity) => {
+        if (!entity?.id) {
+          return;
+        }
+
+        setObservedEntities(
+          (prev) => {
+            const exists =
+              prev.some(
+                (item) =>
+                  item.id ===
+                  entity.id
+              );
+
+            if (exists) {
+              return prev;
+            }
+
+            return [
+              ...prev,
+              entity,
+            ];
+          }
+        );
+      },
+      []
+    );
+
+  /* =======================================================
+     OBSERVATION COMPLETE
+  ======================================================= */
+
+  const handleObservationComplete =
+    useCallback(
+      (data) => {
+        /*
+         * MarketGame V2 mengirim:
+         *
+         * {
+         *   observedIds,
+         *   complete: true
+         * }
+         *
+         * Progress observasi tetap
+         * ditangani oleh React state.
+         */
+        if (
+          data?.observedIds
+        ) {
+          setObservedEntities(
+            (prev) => {
+              const ids =
+                new Set(
+                  data.observedIds
+                );
+
+              return prev.filter(
+                (entity) =>
+                  ids.has(
+                    entity.id
+                  )
+              );
+            }
+          );
+        }
+      },
+      []
+    );
+
+  /* =======================================================
+     GAME RESULT
+  ======================================================= */
+
+  const handleGameResult =
+    useCallback(
+      (result) => {
+        /*
+         * onResult hanya untuk
+         * menyimpan hasil sementara.
+         *
+         * Reward final tetap diproses
+         * melalui onComplete.
+         */
+        setGameResult(
+          result ?? null
+        );
+      },
+      []
+    );
+
+  /* =======================================================
+     GAME COMPLETE
+  ======================================================= */
+
+  const handleGameComplete =
+    useCallback(
+      (result = {}) => {
+        if (!activeMission) {
+          return;
+        }
+
+        /*
+         * Phaser bisa saja memanggil
+         * callback lebih dari sekali.
+         */
+        if (
+          completionHandledRef.current
+        ) {
+          return;
+        }
+
+        completionHandledRef.current =
+          true;
+
+        const mission =
+          activeMission;
+
+        const parsedScore =
+          Number(
+            result?.score
+          );
+
+        const parsedXP =
+          Number(
+            result?.xp
+          );
+
+        const parsedCoins =
+          Number(
+            result?.coins
+          );
+
+        const safeScore =
+          Number.isFinite(
+            parsedScore
+          )
+            ? parsedScore
+            : 0;
+
+        const earnedXP =
+          Number.isFinite(
+            parsedXP
+          )
+            ? parsedXP
+            : Number(
+                mission.xp || 0
+              );
+
+        const earnedCoins =
+          Number.isFinite(
+            parsedCoins
+          )
+            ? parsedCoins
+            : 0;
+
+        /*
+         * Simpan progress lokal.
+         *
+         * Completion pertama:
+         * XP + coins bertambah.
+         *
+         * Replay:
+         * XP + coins tidak bertambah,
+         * tetapi best score tetap
+         * boleh meningkat.
+         */
+        setProgress(
+          (prev) => {
+            const alreadyCompleted =
+              prev.completed.includes(
+                mission.id
+              );
+
+            const oldBest =
+              Number(
+                prev.bestScores?.[
+                  mission.id
+                ] || 0
+              );
+
+            const bestScore =
+              Math.max(
+                oldBest,
+                safeScore
+              );
+
+            if (
+              alreadyCompleted
+            ) {
+              if (
+                bestScore ===
+                oldBest
+              ) {
+                return prev;
+              }
+
+              return {
+                ...prev,
+
+                bestScores: {
+                  ...prev.bestScores,
+
+                  [mission.id]:
+                    bestScore,
+                },
+              };
+            }
+
+            return {
+              ...prev,
+
+              xp:
+                prev.xp +
+                earnedXP,
+
+              coins:
+                prev.coins +
+                earnedCoins,
+
+              completed: [
+                ...prev.completed,
+                mission.id,
+              ],
+
+              bestScores: {
+                ...prev.bestScores,
+
+                [mission.id]:
+                  bestScore,
+              },
+            };
+          }
+        );
+
+        /*
+         * Simpan hasil terakhir
+         * sebelum game ditutup.
+         */
+        setGameResult({
+          ...result,
+
+          missionId:
+            mission.id,
+
+          score:
+            safeScore,
+
+          xp:
+            earnedXP,
+
+          coins:
+            earnedCoins,
+        });
+
+        /*
+         * Kembali ke Academy.
+         *
+         * Kita sengaja tidak melakukan
+         * navigate().
+         */
+        setGameStarted(
+          false
+        );
+
+        setActiveMission(
+          null
+        );
+
+        setPracticeMode(
+          false
+        );
+
+        setPracticeChecked(
+          []
+        );
+
+        setObservedEntities(
+          []
+        );
+
+        /*
+         * Jangan tampilkan result dock
+         * karena game screen ditutup.
+         */
+        setGameResult(
+          null
+        );
+
+        requestAnimationFrame(
+          () => {
+            window.scrollTo({
+              top: 0,
+              behavior:
+                "smooth",
+            });
+          }
+        );
+      },
+      [activeMission]
+    );
 
   /* =======================================================
      PRACTICE
   ======================================================= */
 
-  const togglePractice = useCallback((index) => {
-    setPracticeChecked((prev) => (
-      prev.includes(index)
-        ? prev.filter((item) => item !== index)
-        : [...prev, index]
-    ));
-  }, []);
-
-  const finishPractice = useCallback(() => {
-    if (!activeMission) return;
-
-    setProgress((prev) => ({
-      ...prev,
-      practices: {
-        ...prev.practices,
-        [activeMission.id]: true,
+  const togglePractice =
+    useCallback(
+      (index) => {
+        setPracticeChecked(
+          (prev) =>
+            prev.includes(
+              index
+            )
+              ? prev.filter(
+                  (item) =>
+                    item !==
+                    index
+                )
+              : [
+                  ...prev,
+                  index,
+                ]
+        );
       },
-    }));
-  }, [activeMission]);
+      []
+    );
+
+  const finishPractice =
+    useCallback(
+      () => {
+        if (!activeMission) {
+          return;
+        }
+
+        setProgress(
+          (prev) => ({
+            ...prev,
+
+            practices: {
+              ...prev.practices,
+
+              [activeMission.id]:
+                true,
+            },
+          })
+        );
+      },
+      [activeMission]
+    );
 
   /* =======================================================
      RESET
   ======================================================= */
 
-  const resetProgress = useCallback(() => {
-    setProgress({
-      ...defaultProgress,
-      completed: [],
-      bestScores: {},
-      practices: {},
-    });
-    setShowResetConfirm(false);
-  }, []);
+  const resetProgress =
+    useCallback(
+      () => {
+        setProgress({
+          ...defaultProgress,
+
+          completed: [],
+
+          bestScores: {},
+
+          practices: {},
+        });
+
+        setShowResetConfirm(
+          false
+        );
+      },
+      []
+    );
 
   /* =======================================================
      GAME COMPONENT
   ======================================================= */
 
-  const renderGame = () => {
-    if (
-      !activeMission
-    ) {
-      return null;
-    }
+  const renderGame =
+    useCallback(
+      () => {
+        if (!activeMission) {
+          return null;
+        }
 
-    const props = {
-      mission:
+        const props = {
+          mission:
+            activeMission,
+
+          onEntityObserved:
+            handleEntityObserved,
+
+          onObservationComplete:
+            handleObservationComplete,
+
+          onResult:
+            handleGameResult,
+
+          onComplete:
+            handleGameComplete,
+
+          onExit:
+            closeMission,
+        };
+
+        switch (
+          activeMission.id
+        ) {
+          case "cabai-hujan":
+            return (
+              <CabaiGame
+                {...props}
+              />
+            );
+
+          case "bibit-sehat":
+            return (
+              <BibitGame
+                {...props}
+              />
+            );
+
+          case "harga-pasar":
+            return (
+              <MarketGame
+                {...props}
+              />
+            );
+
+          default:
+            return (
+              <PhaserGame
+                {...props}
+              />
+            );
+        }
+      },
+      [
         activeMission,
-
-      onEntityObserved:
         handleEntityObserved,
-
-      onObservationComplete:
         handleObservationComplete,
-
-      onResult:
         handleGameResult,
-
-      onComplete:
         handleGameComplete,
-
-      onExit:
         closeMission,
-    };
-
-    switch (
-      activeMission.id
-    ) {
-      case "cabai-hujan":
-        return (
-          <CabaiGame
-            {...props}
-          />
-        );
-
-      case "bibit-sehat":
-        return (
-          <BibitGame
-            {...props}
-          />
-        );
-
-      case "harga-pasar":
-        return (
-          <MarketGame
-            {...props}
-          />
-        );
-
-      default:
-        return (
-          <PhaserGame
-            {...props}
-          />
-        );
-    }
-  };
+      ]
+    );
 
   /* =======================================================
      GAME SCREEN
@@ -748,7 +1176,10 @@ export default function Academy() {
     gameStarted
   ) {
     return (
-      <main className="academy-page academy-page--game" aria-label="Smart Academy game">
+      <main
+        className="academy-page academy-page--game"
+        aria-label="Smart Academy game"
+      >
         <header className="academy-game-topbar">
           <button
             type="button"
@@ -757,14 +1188,21 @@ export default function Academy() {
               setGameStarted(
                 false
               );
+
               setGameResult(
                 null
+              );
+
+              setObservedEntities(
+                []
               );
             }}
           >
             <ArrowLeft
               size={18}
+              aria-hidden="true"
             />
+
             <span>
               Keluar dari game
             </span>
@@ -772,22 +1210,36 @@ export default function Academy() {
 
           <div className="academy-game-title">
             <span>
-              {activeMission.category}
+              {
+                activeMission.category
+              }
             </span>
 
             <strong>
-              {activeMission.title}
+              {
+                activeMission.title
+              }
             </strong>
           </div>
 
           <div className="academy-game-progress">
             <span aria-live="polite">
-              {visibleObservedCount}/{observationTarget} bukti
+              {
+                visibleObservedCount
+              }
+              /
+              {
+                observationTarget
+              }{" "}
+              bukti
             </span>
           </div>
         </header>
 
-        <section className="academy-game-stage" aria-label={`Permainan: ${activeMission.title}`}>
+        <section
+          className="academy-game-stage"
+          aria-label={`Permainan: ${activeMission.title}`}
+        >
           <div className="academy-game-wrapper">
             {renderGame()}
           </div>
@@ -811,9 +1263,8 @@ export default function Academy() {
 
               <div>
                 <strong>
-                  {practiceCompleted
-                    ? "Praktik kamu sudah tercatat"
-                    : "Keputusanmu sudah tercatat"}
+                  Keputusanmu sudah
+                  tercatat
                 </strong>
 
                 <span>
@@ -829,8 +1280,7 @@ export default function Academy() {
                   }{" "}
                   XP • +
                   {
-                    gameResult
-                      .coins
+                    gameResult.coins
                   }{" "}
                   🪙
                 </span>
@@ -840,10 +1290,23 @@ export default function Academy() {
             <button
               type="button"
               className="academy-primary-button"
-              onClick={practiceCompleted ? closeMission : () => setPracticeMode(true)}
+              onClick={
+                practiceCompleted
+                  ? closeMission
+                  : () =>
+                      setPracticeMode(
+                        true
+                      )
+              }
             >
-              {practiceCompleted ? "Kembali ke Academy" : "Lanjut Praktik"}
-              <ArrowRight size={18} aria-hidden="true" />
+              {practiceCompleted
+                ? "Kembali ke Academy"
+                : "Lanjut Praktik"}
+
+              <ArrowRight
+                size={18}
+                aria-hidden="true"
+              />
             </button>
           </div>
         )}
@@ -898,7 +1361,9 @@ export default function Academy() {
           >
             <ArrowLeft
               size={18}
+              aria-hidden="true"
             />
+
             Kembali ke Academy
           </button>
 
@@ -906,7 +1371,9 @@ export default function Academy() {
             <section className="academy-detail-hero">
               <div className="academy-detail-image-wrap">
                 <img
-                  src={activeMission.asset}
+                  src={
+                    activeMission.asset
+                  }
                   alt={`Ilustrasi studi kasus ${activeMission.title}`}
                   className="academy-detail-image"
                   loading="eager"
@@ -928,15 +1395,13 @@ export default function Academy() {
                 <div className="academy-detail-meta">
                   <span>
                     {
-                      activeMission
-                        .number
+                      activeMission.number
                     }
                   </span>
 
                   <span>
                     {
-                      activeMission
-                        .category
+                      activeMission.category
                     }
                   </span>
 
@@ -946,8 +1411,7 @@ export default function Academy() {
                     )}
                   >
                     {
-                      activeMission
-                        .difficultyLabel
+                      activeMission.difficultyLabel
                     }
                   </span>
                 </div>
@@ -972,8 +1436,7 @@ export default function Academy() {
 
                     <span>
                       {
-                        activeMission
-                          .xp
+                        activeMission.xp
                       }{" "}
                       XP
                     </span>
@@ -986,8 +1449,7 @@ export default function Academy() {
 
                     <span>
                       {
-                        activeMission
-                          .duration
+                        activeMission.duration
                       }
                     </span>
                   </div>
@@ -1017,9 +1479,7 @@ export default function Academy() {
 
                 <div className="academy-context-list">
                   {activeMission.context.map(
-                    (
-                      item
-                    ) => (
+                    (item) => (
                       <span
                         key={item}
                       >
@@ -1040,6 +1500,7 @@ export default function Academy() {
                     <Play
                       size={20}
                       fill="currentColor"
+                      aria-hidden="true"
                     />
                   </span>
 
@@ -1059,6 +1520,7 @@ export default function Academy() {
 
                   <ArrowRight
                     size={20}
+                    aria-hidden="true"
                   />
                 </button>
               </div>
@@ -1072,7 +1534,8 @@ export default function Academy() {
                   />
 
                   <strong>
-                    Yang akan kamu pelajari
+                    Yang akan kamu
+                    pelajari
                   </strong>
                 </div>
 
@@ -1127,7 +1590,8 @@ export default function Academy() {
                     <span>
                       5
                     </span>
-                    Praktik di dunia nyata
+                    Praktik di dunia
+                    nyata
                   </li>
                 </ol>
               </div>
@@ -1142,12 +1606,14 @@ export default function Academy() {
 
                   <div>
                     <strong>
-                      Studi kasus selesai
+                      Studi kasus
+                      selesai
                     </strong>
 
                     <span>
                       Kamu sudah pernah
-                      menyelesaikan misi ini.
+                      menyelesaikan misi
+                      ini.
                     </span>
                   </div>
                 </div>
@@ -1181,7 +1647,9 @@ export default function Academy() {
             <div className="academy-eyebrow">
               <Gamepad2
                 size={15}
+                aria-hidden="true"
               />
+
               SMART ACADEMY
             </div>
 
@@ -1225,7 +1693,9 @@ export default function Academy() {
                 <Play
                   size={18}
                   fill="currentColor"
+                  aria-hidden="true"
                 />
+
                 Mulai Belajar
               </button>
 
@@ -1246,7 +1716,9 @@ export default function Academy() {
             <div className="academy-character-badge">
               <Sparkles
                 size={14}
+                aria-hidden="true"
               />
+
               <span>
                 Siap bertani?
               </span>
@@ -1304,6 +1776,7 @@ export default function Academy() {
             <div>
               <Zap
                 size={17}
+                aria-hidden="true"
               />
 
               <strong>
@@ -1318,6 +1791,7 @@ export default function Academy() {
             <div>
               <Coins
                 size={17}
+                aria-hidden="true"
               />
 
               <strong>
@@ -1332,6 +1806,7 @@ export default function Academy() {
             <div>
               <Trophy
                 size={17}
+                aria-hidden="true"
               />
 
               <strong>
@@ -1356,12 +1831,14 @@ export default function Academy() {
             </span>
 
             <h2>
-              Mau belajar apa hari ini?
+              Mau belajar apa hari
+              ini?
             </h2>
 
             <p>
-              Setiap kasus membawa kamu
-              lebih dekat ke praktik nyata.
+              Setiap kasus membawa
+              kamu lebih dekat ke
+              praktik nyata.
             </p>
           </div>
 
@@ -1441,16 +1918,18 @@ export default function Academy() {
             </span>
 
             <h3>
-              Game selesai bukan berarti
-              belajarnya selesai.
+              Game selesai bukan
+              berarti belajarnya
+              selesai.
             </h3>
 
             <p>
-              Setelah menyelesaikan studi
-              kasus, kamu akan mendapatkan
-              checklist sederhana untuk
-              dicoba langsung di kebun,
-              lahan, atau lingkunganmu.
+              Setelah menyelesaikan
+              studi kasus, kamu akan
+              mendapatkan checklist
+              sederhana untuk dicoba
+              langsung di kebun, lahan,
+              atau lingkunganmu.
             </p>
           </div>
 
@@ -1459,28 +1938,35 @@ export default function Academy() {
               <span>
                 01
               </span>
+
               <strong>
                 Mainkan
               </strong>
             </div>
 
-            <ChevronRight />
+            <ChevronRight
+              aria-hidden="true"
+            />
 
             <div>
               <span>
                 02
               </span>
+
               <strong>
                 Pahami
               </strong>
             </div>
 
-            <ChevronRight />
+            <ChevronRight
+              aria-hidden="true"
+            />
 
             <div>
               <span>
                 03
               </span>
+
               <strong>
                 Praktik
               </strong>
@@ -1503,7 +1989,9 @@ export default function Academy() {
           >
             <RotateCcw
               size={14}
+              aria-hidden="true"
             />
+
             Reset progress
           </button>
         </div>
@@ -1514,8 +2002,27 @@ export default function Academy() {
       =================================================== */}
 
       {showResetConfirm && (
-        <div className="academy-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowResetConfirm(false); }}>
-          <section className="academy-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="academy-reset-title">
+        <div
+          className="academy-modal-backdrop"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setShowResetConfirm(
+                false
+              );
+            }
+          }}
+        >
+          <section
+            className="academy-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="academy-reset-title"
+          >
             <button
               type="button"
               className="academy-modal-close"
@@ -1528,12 +2035,14 @@ export default function Academy() {
             >
               <X
                 size={18}
+                aria-hidden="true"
               />
             </button>
 
             <div className="academy-confirm-icon">
               <RotateCcw
                 size={24}
+                aria-hidden="true"
               />
             </div>
 
@@ -1542,9 +2051,10 @@ export default function Academy() {
             </h3>
 
             <p>
-              XP, coins, skor terbaik,
-              dan status misi yang sudah
-              selesai akan dihapus dari
+              XP, coins, skor
+              terbaik, dan status
+              misi yang sudah selesai
+              akan dihapus dari
               perangkat ini.
             </p>
 
@@ -1589,14 +2099,27 @@ function MissionCard({
 }) {
   return (
     <article
-      className={`academy-mission-card ${completed ? "is-completed" : ""}`}
-      data-mission-index={index}
+      className={`academy-mission-card ${
+        completed
+          ? "is-completed"
+          : ""
+      }`}
+      data-mission-index={
+        index
+      }
       role="button"
       tabIndex={0}
       aria-label={`Buka studi kasus ${mission.title}. Reward ${mission.xp} XP. Durasi ${mission.duration}.`}
       onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
+      onKeyDown={(
+        event
+      ) => {
+        if (
+          event.key ===
+            "Enter" ||
+          event.key ===
+            " "
+        ) {
           event.preventDefault();
           onClick();
         }
@@ -1604,7 +2127,9 @@ function MissionCard({
     >
       <div className="academy-card-image">
         <img
-          src={mission.asset}
+          src={
+            mission.asset
+          }
           alt=""
           aria-hidden="true"
           loading="lazy"
@@ -1612,7 +2137,9 @@ function MissionCard({
         />
 
         <div className="academy-card-number">
-          {mission.number}
+          {
+            mission.number
+          }
         </div>
 
         <div
@@ -1620,34 +2147,50 @@ function MissionCard({
             mission.difficulty
           )}
         >
-          {mission.difficultyLabel}
+          {
+            mission.difficultyLabel
+          }
         </div>
 
         {completed && (
           <div className="academy-card-complete">
             <Check
               size={15}
+              aria-hidden="true"
             />
+
             SELESAI
           </div>
         )}
 
-        <div className="academy-card-play" aria-hidden="true">
-          <Play size={18} fill="currentColor" />
+        <div
+          className="academy-card-play"
+          aria-hidden="true"
+        >
+          <Play
+            size={18}
+            fill="currentColor"
+          />
         </div>
       </div>
 
       <div className="academy-card-body">
         <div className="academy-card-category">
-          {mission.category}
+          {
+            mission.category
+          }
         </div>
 
         <h3>
-          {mission.title}
+          {
+            mission.title
+          }
         </h3>
 
         <p>
-          {mission.shortDescription}
+          {
+            mission.shortDescription
+          }
         </p>
 
         <div className="academy-card-context">
@@ -1658,7 +2201,9 @@ function MissionCard({
                 item
               ) => (
                 <span
-                  key={item}
+                  key={
+                    item
+                  }
                 >
                   {item}
                 </span>
@@ -1670,6 +2215,7 @@ function MissionCard({
           <div className="academy-card-reward">
             <Zap
               size={15}
+              aria-hidden="true"
             />
 
             <strong>
@@ -1684,14 +2230,18 @@ function MissionCard({
           <div className="academy-card-duration">
             <Gamepad2
               size={14}
+              aria-hidden="true"
             />
 
-            {mission.duration}
+            {
+              mission.duration
+            }
           </div>
 
           <ChevronRight
             className="academy-card-arrow"
             size={18}
+            aria-hidden="true"
           />
         </div>
 
@@ -1700,11 +2250,14 @@ function MissionCard({
           <div className="academy-card-score">
             <Trophy
               size={13}
+              aria-hidden="true"
             />
 
             Skor terbaik{" "}
             <strong>
-              {bestScore}
+              {
+                bestScore
+              }
             </strong>
           </div>
         )}
@@ -1725,15 +2278,34 @@ function PracticeModal({
   onClose,
 }) {
   const total =
-    mission.practiceChecklist
+    mission
+      .practiceChecklist
       .length;
 
   const complete =
-    checked.length === total;
+    checked.length ===
+    total;
 
   return (
-    <div className="academy-modal-backdrop academy-modal-backdrop--practice" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="academy-practice-modal" role="dialog" aria-modal="true" aria-labelledby="academy-practice-title">
+    <div
+      className="academy-modal-backdrop academy-modal-backdrop--practice"
+      onMouseDown={(
+        event
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className="academy-practice-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="academy-practice-title"
+      >
         <button
           type="button"
           className="academy-modal-close"
@@ -1742,6 +2314,7 @@ function PracticeModal({
         >
           <X
             size={19}
+            aria-hidden="true"
           />
         </button>
 
@@ -1756,7 +2329,8 @@ function PracticeModal({
             </span>
 
             <h2 id="academy-practice-title">
-              Bawa pelajaran ini ke dunia nyata.
+              Bawa pelajaran ini
+              ke dunia nyata.
             </h2>
           </div>
         </div>
@@ -1780,7 +2354,9 @@ function PracticeModal({
             </span>
 
             <strong>
-              {checked.length}
+              {
+                checked.length
+              }
               /
               {total}
             </strong>
@@ -1816,9 +2392,8 @@ function PracticeModal({
                   <span className="academy-check-box">
                     {isChecked && (
                       <Check
-                        size={
-                          15
-                        }
+                        size={15}
+                        aria-hidden="true"
                       />
                     )}
                   </span>
@@ -1835,6 +2410,7 @@ function PracticeModal({
         <div className="academy-practice-tip">
           <Sparkles
             size={17}
+            aria-hidden="true"
           />
 
           <span>
@@ -1858,14 +2434,18 @@ function PracticeModal({
             <>
               <Check
                 size={19}
+                aria-hidden="true"
               />
+
               Praktik Selesai
             </>
           ) : (
             <>
               <Lock
                 size={17}
+                aria-hidden="true"
               />
+
               Selesaikan checklist
             </>
           )}

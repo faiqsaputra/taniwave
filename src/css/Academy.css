@@ -3125,3 +3125,810 @@
     0 4px 16px
     rgba(0, 0, 0, 0.12);
 }
+
+/* =========================================================
+   CABAI GAME RESPONSIVE CANVAS
+========================================================= */
+
+.cabai-game-container {
+  display: block;
+  flex: 0 0 auto;
+
+  overflow: hidden;
+
+  background: #91bd62;
+
+  contain: layout paint;
+}
+
+.cabai-game-container canvas {
+  display: block;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  max-width: 100% !important;
+  max-height: 100% !important;
+
+  margin: 0 auto;
+
+  object-fit: fill;
+
+  touch-action: manipulation;
+}
+
+/* Portrait */
+@media (max-width: 600px) and (orientation: portrait) {
+  .academy-game-stage {
+    width: 100%;
+
+    min-height: 0;
+
+    padding: 8px;
+
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .academy-game-wrapper {
+    width: 100%;
+    max-width: 520px;
+
+    min-height: 0;
+
+    margin: 0 auto;
+
+    overflow: visible;
+  }
+
+  .cabai-game-container--portrait {
+    width: 100%;
+    max-width: 520px;
+
+    margin: 0 auto;
+  }
+}
+
+/* Landscape */
+@media (max-width: 900px) and (orientation: landscape) {
+  .academy-game-stage {
+    width: 100%;
+
+    min-height: 0;
+
+    padding: 5px;
+
+    align-items: center;
+    justify-content: center;
+  }
+
+  .academy-game-wrapper {
+    width: 100%;
+
+    min-height: 0;
+
+    margin: 0 auto;
+
+    overflow: hidden;
+  }
+
+  .cabai-game-container--landscape {
+    margin: 0 auto;
+  }
+}
+
+/* =========================================================
+   CABAI GAME
+========================================================= */
+
+.cabai-game-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  flex-direction: column;
+
+  width: 100vw;
+  height: 100dvh;
+
+  overflow: hidden;
+
+  background: #111611;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.cabai-game-header {
+  position: relative;
+  z-index: 20;
+
+  flex: 0 0 72px;
+
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 0 18px;
+
+  background: #171c17;
+
+  border-bottom: 1px solid rgba(255,255,255,.08);
+
+  color: #f7f4e9;
+}
+
+.cabai-back-button {
+  width: 40px;
+  height: 40px;
+
+  border: 0;
+  border-radius: 50%;
+
+  background: transparent;
+
+  color: #f7f4e9;
+
+  font-size: 30px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.cabai-back-button:active {
+  transform: scale(.92);
+}
+
+.cabai-header-title {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.cabai-header-title span {
+  font-size: 11px;
+  font-weight: 800;
+
+  letter-spacing: .16em;
+
+  color: #929b91;
+}
+
+.cabai-header-title strong {
+  overflow: hidden;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cabai-header-progress {
+  padding: 9px 12px;
+
+  border-radius: 12px;
+
+  background: #262d27;
+
+  color: #d7ddd5;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   GAME MAIN
+========================================================= */
+
+.cabai-game-main {
+  flex: 1 1 auto;
+
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  padding: 8px;
+}
+
+
+/* =========================================================
+   FRAME
+========================================================= */
+
+.cabai-game-frame {
+  position: relative;
+
+  width: 100%;
+  height: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  border-radius: 18px;
+
+  background: #111611;
+}
+
+
+/* =========================================================
+   PHASER CONTAINER
+
+   PENTING:
+   Jangan kasih aspect-ratio.
+   Phaser akan mengikuti ukuran container.
+========================================================= */
+
+.cabai-phaser-container {
+  position: relative;
+
+  width: 100%;
+  height: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow: hidden;
+
+  display: block;
+}
+
+.cabai-phaser-container canvas {
+  display: block !important;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  max-width: none !important;
+  max-height: none !important;
+
+  margin: 0 !important;
+
+  touch-action: manipulation;
+}
+
+
+/* =========================================================
+   OVERLAY
+========================================================= */
+
+.cabai-overlay {
+  position: fixed;
+  inset: 0;
+
+  z-index: 10000;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px;
+
+  background: rgba(10,14,10,.76);
+
+  backdrop-filter: blur(8px);
+}
+
+
+/* =========================================================
+   DECISION CARD
+========================================================= */
+
+.cabai-decision-card,
+.cabai-result-card {
+  width: min(
+    100%,
+    520px
+  );
+
+  max-height: calc(
+    100dvh - 36px
+  );
+
+  overflow-y: auto;
+
+  padding: 24px;
+
+  border-radius: 24px;
+
+  background: #f7f4e9;
+
+  box-shadow:
+    0 20px 60px
+    rgba(0,0,0,.35);
+
+  color: #193326;
+}
+
+.cabai-decision-badge,
+.cabai-result-label {
+  display: inline-flex;
+
+  padding: 7px 11px;
+
+  border-radius: 999px;
+
+  background: #e7f0dd;
+
+  color: #47733c;
+
+  font-size: 10px;
+  font-weight: 900;
+
+  letter-spacing: .1em;
+}
+
+.cabai-decision-card h2,
+.cabai-result-card h2 {
+  margin: 14px 0 8px;
+
+  font-size: clamp(
+    24px,
+    6vw,
+    34px
+  );
+
+  line-height: 1.08;
+}
+
+.cabai-decision-card > p,
+.cabai-result-card > p {
+  margin: 0 0 20px;
+
+  color: #657066;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   DECISION OPTIONS
+========================================================= */
+
+.cabai-decision-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+}
+
+.cabai-decision-option {
+  width: 100%;
+
+  display: grid;
+  grid-template-columns: 1fr 28px;
+
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 15px;
+
+  border: 1px solid #e4dccb;
+
+  border-radius: 16px;
+
+  background: #fffdf8;
+
+  color: #193326;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    transform .15s ease,
+    border-color .15s ease,
+    background .15s ease;
+}
+
+.cabai-decision-option:hover {
+  transform: translateY(-2px);
+
+  border-color: #d5a63b;
+
+  background: #fffaf0;
+}
+
+.cabai-decision-option:active {
+  transform: scale(.98);
+}
+
+.cabai-decision-option strong {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-size: 14px;
+}
+
+.cabai-decision-option span {
+  display: block;
+
+  color: #727a72;
+
+  font-size: 12px;
+
+  line-height: 1.45;
+}
+
+.cabai-decision-option b {
+  font-size: 22px;
+
+  color: #b18428;
+}
+
+
+/* =========================================================
+   RESULT
+========================================================= */
+
+.cabai-result-card {
+  text-align: center;
+}
+
+.cabai-result-icon {
+  width: 64px;
+  height: 64px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 auto 12px;
+
+  border-radius: 20px;
+
+  background: #e7f0dd;
+
+  font-size: 32px;
+}
+
+.cabai-result-score {
+  display: inline-flex;
+
+  margin: 12px auto 18px;
+
+  padding: 8px 14px;
+
+  border-radius: 999px;
+
+  background: #f7e7b9;
+
+  color: #a87917;
+
+  font-size: 13px;
+  font-weight: 900;
+}
+
+
+/* =========================================================
+   LEARNING BOX
+========================================================= */
+
+.cabai-learning-box {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  margin: 18px 0;
+
+  padding: 15px;
+
+  border-radius: 16px;
+
+  background: #eaf2e2;
+
+  text-align: left;
+}
+
+.cabai-learning-box strong {
+  font-size: 12px;
+
+  color: #47733c;
+}
+
+.cabai-learning-box span {
+  color: #536052;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   PRACTICE BUTTON
+========================================================= */
+
+.cabai-practice-button {
+  width: 100%;
+
+  min-height: 50px;
+
+  border: 0;
+  border-radius: 15px;
+
+  background: #c89b3c;
+
+  color: white;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 20px
+    rgba(200,155,60,.25);
+}
+
+.cabai-practice-button:active {
+  transform: scale(.98);
+}
+
+.cabai-result-card small {
+  display: block;
+
+  margin-top: 10px;
+
+  color: #858b84;
+
+  font-size: 11px;
+
+  line-height: 1.45;
+}
+
+
+/* =========================================================
+   REWARD
+========================================================= */
+
+.cabai-reward-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 8px;
+
+  margin: 18px 0;
+}
+
+.cabai-reward-grid div {
+  padding: 12px 8px;
+
+  border-radius: 14px;
+
+  background: #f1ecdf;
+}
+
+.cabai-reward-grid strong {
+  display: block;
+
+  color: #a87917;
+
+  font-size: 17px;
+}
+
+.cabai-reward-grid span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: #7c827b;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   PORTRAIT
+========================================================= */
+
+@media (max-width: 600px) and (orientation: portrait) {
+
+  .cabai-game-header {
+    flex-basis: 66px;
+
+    grid-template-columns:
+      42px 1fr auto;
+
+    padding: 0 12px;
+  }
+
+  .cabai-game-main {
+    padding: 6px;
+  }
+
+  .cabai-game-frame {
+    border-radius: 16px;
+  }
+
+  .cabai-header-title strong {
+    font-size: 14px;
+  }
+
+  .cabai-header-progress {
+    padding: 8px 9px;
+
+    font-size: 10px;
+  }
+
+  .cabai-decision-card,
+  .cabai-result-card {
+    padding: 20px;
+
+    border-radius: 21px;
+  }
+}
+
+
+/* =========================================================
+   SMALL PHONE
+========================================================= */
+
+@media (max-width: 380px) {
+
+  .cabai-game-header {
+    grid-template-columns:
+      38px 1fr auto;
+
+    padding: 0 8px;
+  }
+
+  .cabai-back-button {
+    width: 34px;
+    height: 34px;
+
+    font-size: 25px;
+  }
+
+  .cabai-header-title span {
+    font-size: 9px;
+  }
+
+  .cabai-header-title strong {
+    font-size: 12px;
+  }
+
+  .cabai-header-progress {
+    padding: 7px;
+
+    font-size: 9px;
+  }
+
+  .cabai-decision-card,
+  .cabai-result-card {
+    padding: 16px;
+  }
+
+  .cabai-decision-option {
+    padding: 12px;
+  }
+}
+
+
+/* =========================================================
+   LANDSCAPE PHONE
+========================================================= */
+
+@media (
+  max-height: 500px
+) and (
+  orientation: landscape
+) {
+
+  .cabai-game-header {
+    flex-basis: 54px;
+
+    padding: 0 12px;
+  }
+
+  .cabai-back-button {
+    width: 34px;
+    height: 34px;
+
+    font-size: 24px;
+  }
+
+  .cabai-header-title span {
+    font-size: 9px;
+  }
+
+  .cabai-header-title strong {
+    font-size: 12px;
+  }
+
+  .cabai-game-main {
+    padding: 5px;
+  }
+
+  .cabai-game-frame {
+    border-radius: 14px;
+  }
+
+  .cabai-decision-card,
+  .cabai-result-card {
+    max-width: 600px;
+
+    padding: 16px;
+  }
+
+  .cabai-decision-card h2,
+  .cabai-result-card h2 {
+    margin: 8px 0 5px;
+
+    font-size: 22px;
+  }
+
+  .cabai-decision-card > p,
+  .cabai-result-card > p {
+    margin-bottom: 12px;
+
+    font-size: 12px;
+  }
+
+  .cabai-decision-option {
+    padding: 10px;
+  }
+}
+
+
+/* =========================================================
+   VERY SHORT LANDSCAPE
+========================================================= */
+
+@media (
+  max-height: 380px
+) and (
+  orientation: landscape
+) {
+
+  .cabai-game-header {
+    flex-basis: 46px;
+  }
+
+  .cabai-game-main {
+    padding: 3px;
+  }
+
+  .cabai-decision-card,
+  .cabai-result-card {
+    padding: 12px;
+  }
+
+  .cabai-result-icon {
+    width: 44px;
+    height: 44px;
+
+    font-size: 22px;
+  }
+}

@@ -1,116 +1,96 @@
-import Phaser from "phaser";
-import { useEffect, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-const GAME_WIDTH = 960;
-const GAME_HEIGHT = 620;
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Eye,
+  Gamepad2,
+  Leaf,
+  RotateCcw,
+  Sparkles,
+  Sprout,
+  Trophy,
+  X,
+  Zap,
+} from "lucide-react";
 
-const COLORS = {
-  sky: 0xdcecf2,
-  grass: 0x91bd6d,
-  grassDark: 0x67954e,
-  soil: 0x7b5134,
-  soilDark: 0x5e3d29,
+import "../../css/academy/BibitGame.css";
 
-  leaf: 0x4f8f42,
-  leafDark: 0x356c31,
-  stem: 0x5d8f3c,
+/**
+ * =========================================================
+ * BIBIT GAME
+ * =========================================================
+ *
+ * FLOW
+ *
+ * INTRO
+ *   ↓
+ * OBSERVE
+ *   ↓
+ * COMPARE
+ *   ↓
+ * CHOOSE
+ *   ↓
+ * CONSEQUENCE
+ *   ↓
+ * DISCUSSION
+ *   ↓
+ * COMPLETE
+ *
+ * Parent:
+ *
+ * <BibitGame
+ *   mission={mission}
+ *   onEntityObserved={fn}
+ *   onObservationComplete={fn}
+ *   onResult={fn}
+ *   onComplete={fn}
+ *   onExit={fn}
+ * />
+ *
+ * =========================================================
+ */
 
-  yellow: 0xe2b84b,
-  red: 0xc84b43,
-  water: 0x74b8d8,
-
-  white: 0xffffff,
-  panel: 0xfffcf7,
-  text: 0x253126,
-  muted: 0x647067,
-
-  success: 0x4f9a62,
-  warning: 0xd49a3a,
-  danger: 0xc45a50,
+const PHASES = {
+  INTRO: "intro",
+  OBSERVE: "observe",
+  CHOOSE: "choose",
+  RESULT: "result",
+  DISCUSSION: "discussion",
 };
 
-/* =========================================================
-   DATA BIBIT
-========================================================= */
-
-const SEEDLINGS = {
-  a: {
-    id: "a",
-    title: "Bibit A",
-    subtitle: "Pertumbuhan",
-    metric: "Terlalu memanjang",
-    detail:
-      "Batang terlihat tinggi dan kurus dengan jarak antar daun cukup jauh.",
-    quality: "warning",
-  },
-
-  b: {
-    id: "b",
-    title: "Bibit B",
-    subtitle: "Kondisi",
-    metric: "Kokoh & segar",
-    detail:
-      "Batang terlihat kokoh dan daun berwarna relatif seragam.",
-    quality: "good",
-  },
-
-  c: {
-    id: "c",
-    title: "Bibit C",
-    subtitle: "Daun",
-    metric: "Ada bercak",
-    detail:
-      "Terlihat bercak pada beberapa bagian daun sehingga perlu pemeriksaan lebih lanjut.",
-    quality: "danger",
-  },
+const DEFAULT_RESULT = {
+  score: 0,
+  xp: 0,
+  coins: 0,
 };
 
-const DECISIONS = [
-  {
-    id: "b",
-    title: "Pilih Bibit B",
-    description:
-      "Utamakan bibit yang terlihat sehat dan kokoh.",
-    score: 100,
-    xp: 80,
-    coins: 30,
-    type: "good",
-    feedback:
-      "Kamu memilih berdasarkan kondisi tanaman, bukan sekadar tinggi atau ukuran.",
-    learning:
-      "Bibit sehat biasanya menjadi titik awal yang lebih baik untuk pertumbuhan.",
-  },
+function clamp(value, min, max) {
+  return Math.min(
+    Math.max(value, min),
+    max
+  );
+}
 
-  {
-    id: "a",
-    title: "Pilih Bibit A",
-    description:
-      "Pilih yang paling tinggi agar cepat besar.",
-    score: 50,
-    xp: 80,
-    coins: 10,
-    type: "warning",
-    feedback:
-      "Ukuran tinggi belum tentu berarti bibit lebih siap. Struktur batang dan kondisi keseluruhan perlu diperhatikan.",
-    learning:
-      "Jangan menyamakan tinggi tanaman dengan kualitas bibit.",
-  },
-
-  {
-    id: "c",
-    title: "Pilih Bibit C",
-    description:
-      "Coba saja karena daunnya masih banyak.",
-    score: 35,
-    xp: 80,
-    coins: 5,
-    type: "bad",
-    feedback:
-      "Bercak pada daun adalah sinyal untuk diperiksa lebih lanjut sebelum bibit dipindahkan.",
-    learning:
-      "Amati gejala tanaman sebelum memutuskan.",
-  },
-];
+function getMissionChoice(
+  mission,
+  choiceId
+) {
+  return (
+    mission?.choices?.find(
+      (choice) =>
+        choice.id === choiceId
+    ) || null
+  );
+}
 
 /* =========================================================
    COMPONENT
@@ -124,2109 +104,1552 @@ export default function BibitGame({
   onComplete,
   onExit,
 }) {
-  const containerRef = useRef(null);
-  const gameRef = useRef(null);
-
-  useEffect(() => {
-    if (!containerRef.current) {
-      return;
-    }
-
-    class BibitScene extends Phaser.Scene {
-      constructor() {
-        super({
-          key: "BibitScene",
-        });
-
-        this.observedIds = [];
-        this.seedlingObjects = {};
-
-        this.isDecisionPhase = false;
-        this.isResultPhase = false;
-
-        this.player = null;
-        this.popup = null;
-        this.decisionHint = null;
-
-        this.sunParticles = [];
-      }
-
-      /* =====================================================
-         CREATE
-      ===================================================== */
-
-      create() {
-        this.createBackground();
-        this.createNursery();
-        this.createSeedlingTables();
-        this.createSeedlings();
-        this.createPlayer();
-        this.createInteractionZones();
-        this.createHUD();
-        this.createInstructions();
-
-        this.animateEnvironment();
-      }
-
-      /* =====================================================
-         BACKGROUND
-      ===================================================== */
-
-      createBackground() {
-        /*
-         * Sky
-         */
-
-        this.add
-          .rectangle(
-            GAME_WIDTH / 2,
-            150,
-            GAME_WIDTH,
-            300,
-            COLORS.sky
-          )
-          .setDepth(-10);
-
-        /*
-         * Ground
-         */
-
-        this.add
-          .rectangle(
-            GAME_WIDTH / 2,
-            460,
-            GAME_WIDTH,
-            320,
-            COLORS.grass
-          )
-          .setDepth(-9);
-
-        /*
-         * Horizon
-         */
-
-        this.add
-          .rectangle(
-            GAME_WIDTH / 2,
-            335,
-            GAME_WIDTH,
-            10,
-            COLORS.grassDark
-          )
-          .setDepth(-8);
-
-        /*
-         * Hills
-         */
-
-        const hills =
-          this.add.graphics();
-
-        hills.fillStyle(
-          0x9fc78a,
-          1
-        );
-
-        hills.beginPath();
-
-        hills.moveTo(0, 350);
-        hills.lineTo(130, 255);
-        hills.lineTo(280, 350);
-        hills.lineTo(420, 240);
-        hills.lineTo(590, 350);
-        hills.lineTo(740, 255);
-        hills.lineTo(900, 350);
-        hills.lineTo(960, 290);
-        hills.lineTo(960, 380);
-        hills.lineTo(0, 380);
-
-        hills.closePath();
-        hills.fillPath();
-
-        hills.setDepth(-7);
-
-        /*
-         * Sun
-         */
-
-        const sun =
-          this.add.circle(
-            820,
-            115,
-            42,
-            0xf5ce66,
-            0.9
-          );
-
-        sun.setDepth(-5);
-
-        /*
-         * Clouds
-         */
-
-        this.createCloud(
-          140,
-          105,
-          1
-        );
-
-        this.createCloud(
-          510,
-          135,
-          0.7
-        );
-      }
-
-      createCloud(
-        x,
-        y,
-        scale = 1
-      ) {
-        const cloud =
-          this.add.graphics();
-
-        cloud.fillStyle(
-          COLORS.white,
-          0.8
-        );
-
-        cloud.fillCircle(
-          x,
-          y,
-          28 * scale
-        );
-
-        cloud.fillCircle(
-          x + 30 * scale,
-          y - 12 * scale,
-          36 * scale
-        );
-
-        cloud.fillCircle(
-          x + 66 * scale,
-          y,
-          25 * scale
-        );
-
-        cloud.fillRoundedRect(
-          x - 15 * scale,
-          y,
-          95 * scale,
-          25 * scale,
-          12
-        );
-
-        cloud.setDepth(-4);
-      }
-
-      /* =====================================================
-         NURSERY
-      ===================================================== */
-
-      createNursery() {
-        /*
-         * Nursery sign
-         */
-
-        const sign =
-          this.add.container(
-            480,
-            285
-          );
-
-        const post =
-          this.add.graphics();
-
-        post.fillStyle(
-          0x765338,
-          1
-        );
-
-        post.fillRect(
-          -5,
-          15,
-          10,
-          80
-        );
-
-        const board =
-          this.add
-            .rectangle(
-              0,
-              0,
-              260,
-              58,
-              COLORS.panel
-            )
-            .setStrokeStyle(
-              3,
-              COLORS.yellow,
-              1
-            );
-
-        const title =
-          this.add.text(
-            -100,
-            -20,
-            "🌱 AREA PEMBIBITAN",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "16px",
-              fontStyle:
-                "bold",
-              color:
-                "#253126",
-            }
-          );
-
-        const sub =
-          this.add.text(
-            -72,
-            2,
-            "Pilih bibit yang siap tanam",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "10px",
-              color:
-                "#647067",
-            }
-          );
-
-        sign.add([
-          post,
-          board,
-          title,
-          sub,
-        ]);
-
-        sign.setDepth(4);
-      }
-
-      /* =====================================================
-         TABLES
-      ===================================================== */
-
-      createSeedlingTables() {
-        this.createTable(
-          250,
-          470
-        );
-
-        this.createTable(
-          480,
-          470
-        );
-
-        this.createTable(
-          710,
-          470
-        );
-      }
-
-      createTable(
-        x,
-        y
-      ) {
-        const table =
-          this.add.graphics();
-
-        /*
-         * Table top
-         */
-
-        table.fillStyle(
-          0xa9794e,
-          1
-        );
-
-        table.fillRoundedRect(
-          x - 92,
-          y - 20,
-          184,
-          22,
-          8
-        );
-
-        /*
-         * Legs
-         */
-
-        table.fillStyle(
-          0x765338,
-          1
-        );
-
-        table.fillRect(
-          x - 70,
-          y,
-          10,
-          55
-        );
-
-        table.fillRect(
-          x + 60,
-          y,
-          10,
-          55
-        );
-
-        table.setDepth(2);
-
-        /*
-         * Pot shadow
-         */
-
-        this.add
-          .ellipse(
-            x,
-            y - 35,
-            90,
-            20,
-            0x000000,
-            0.08
-          )
-          .setDepth(3);
-      }
-
-      /* =====================================================
-         SEEDLINGS
-      ===================================================== */
-
-      createSeedlings() {
-        this.createSeedling(
-          "a",
-          250,
-          420,
-          {
-            height: 105,
-            stemWidth: 5,
-            leafScale: 0.8,
-          }
-        );
-
-        this.createSeedling(
-          "b",
-          480,
-          420,
-          {
-            height: 72,
-            stemWidth: 8,
-            leafScale: 1,
-          }
-        );
-
-        this.createSeedling(
-          "c",
-          710,
-          420,
-          {
-            height: 78,
-            stemWidth: 7,
-            leafScale: 0.95,
-          }
-        );
-      }
-
-      createSeedling(
-        id,
-        x,
-        y,
-        options
-      ) {
-        const plant =
-          this.add.container(
-            x,
-            y
-          );
-
-        /*
-         * Pot
-         */
-
-        const pot =
-          this.add.graphics();
-
-        pot.fillStyle(
-          0xc27a48,
-          1
-        );
-
-        pot.fillRoundedRect(
-          -35,
-          5,
-          70,
-          45,
-          8
-        );
-
-        pot.fillStyle(
-          0x80502f,
-          1
-        );
-
-        pot.fillEllipse(
-          0,
-          8,
-          58,
-          16
-        );
-
-        /*
-         * Soil
-         */
-
-        const soil =
-          this.add.graphics();
-
-        soil.fillStyle(
-          COLORS.soilDark,
-          1
-        );
-
-        soil.fillEllipse(
-          0,
-          6,
-          52,
-          14
-        );
-
-        /*
-         * Stem
-         */
-
-        const stem =
-          this.add.graphics();
-
-        stem.lineStyle(
-          options.stemWidth,
-          COLORS.stem,
-          1
-        );
-
-        stem.beginPath();
-        stem.moveTo(0, 8);
-        stem.lineTo(
-          0,
-          -options.height
-        );
-        stem.strokePath();
-
-        /*
-         * Leaves
-         */
-
-        const leaves =
-          this.add.graphics();
-
-        const leafScale =
-          options.leafScale;
-
-        leaves.fillStyle(
-          COLORS.leaf,
-          1
-        );
-
-        const leafPositions = [
-          [
-            -16,
-            -options.height +
-              20,
-          ],
-          [
-            17,
-            -options.height +
-              32,
-          ],
-          [
-            -18,
-            -options.height +
-              48,
-          ],
-          [
-            18,
-            -options.height +
-              62,
-          ],
-        ];
-
-        leafPositions.forEach(
-          ([lx, ly], index) => {
-            leaves.fillEllipse(
-              lx,
-              ly,
-              34 * leafScale,
-              16 * leafScale
-            );
-          }
-        );
-
-        /*
-         * Special appearance
-         */
-
-        if (id === "a") {
-          /*
-           * Bibit memanjang
-           */
-
-          leaves.fillStyle(
-            COLORS.leafDark,
-            1
-          );
-
-          leaves.fillEllipse(
-            -20,
-            -options.height +
-              7,
-            27,
-            13
-          );
-        }
-
-        if (id === "c") {
-          /*
-           * Bercak pada daun
-           */
-
-          const spots =
-            this.add.graphics();
-
-          spots.fillStyle(
-            COLORS.yellow,
-            1
-          );
-
-          spots.fillCircle(
-            -17,
-            -options.height +
-              18,
-            4
-          );
-
-          spots.fillCircle(
-            18,
-            -options.height +
-              30,
-            4
-          );
-
-          spots.fillCircle(
-            -18,
-            -options.height +
-              50,
-            3
-          );
-
-          plant.add(
-            spots
-          );
-        }
-
-        plant.add([
-          pot,
-          soil,
-          stem,
-          leaves,
-        ]);
-
-        plant.setDepth(8);
-
-        /*
-         * Label
-         */
-
-        const label =
-          this.add
-            .rectangle(
-              x,
-              y + 78,
-              95,
-              30,
-              COLORS.panel,
-              0.95
-            )
-            .setStrokeStyle(
-              1,
-              0xd9cdbb
-            );
-
-        const labelText =
-          this.add.text(
-            x - 25,
-            y + 68,
-            `BIBIT ${id.toUpperCase()}`,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "12px",
-              fontStyle:
-                "bold",
-              color:
-                "#253126",
-            }
-          );
-
-        label.setDepth(9);
-        labelText.setDepth(10);
-
-        this.seedlingObjects[
-          id
-        ] = {
-          plant,
-          label,
-        };
-      }
-
-      /* =====================================================
-         PLAYER
-      ===================================================== */
-
-      createPlayer() {
-        this.player =
-          this.add.container(
-            480,
-            335
-          );
-
-        /*
-         * Body
-         */
-
-        const body =
-          this.add.graphics();
-
-        body.fillStyle(
-          0x8d5a45,
-          1
-        );
-
-        body.fillRoundedRect(
-          -21,
-          0,
-          42,
-          58,
-          14
-        );
-
-        /*
-         * Shirt
-         */
-
-        const shirt =
-          this.add.graphics();
-
-        shirt.fillStyle(
-          0xd0a84c,
-          1
-        );
-
-        shirt.fillRoundedRect(
-          -20,
-          5,
-          40,
-          43,
-          12
-        );
-
-        /*
-         * Head
-         */
-
-        const head =
-          this.add.graphics();
-
-        head.fillStyle(
-          0xb97850,
-          1
-        );
-
-        head.fillCircle(
-          0,
-          -27,
-          20
-        );
-
-        /*
-         * Hat
-         */
-
-        const hat =
-          this.add.graphics();
-
-        hat.fillStyle(
-          0x4c6b3c,
-          1
-        );
-
-        hat.fillEllipse(
-          0,
-          -50,
-          56,
-          15
-        );
-
-        hat.fillRoundedRect(
-          -19,
-          -66,
-          38,
-          19,
-          8
-        );
-
-        this.player.add([
-          body,
-          shirt,
-          head,
-          hat,
-        ]);
-
-        this.player.setDepth(
-          20
-        );
-      }
-
-      /* =====================================================
-         INTERACTION ZONES
-      ===================================================== */
-
-      createInteractionZones() {
-        this.createSeedlingZone(
-          "a",
-          250,
-          390,
-          145,
-          145
-        );
-
-        this.createSeedlingZone(
-          "b",
-          480,
-          390,
-          145,
-          145
-        );
-
-        this.createSeedlingZone(
-          "c",
-          710,
-          390,
-          145,
-          145
-        );
-      }
-
-      createSeedlingZone(
-        id,
-        x,
-        y,
-        width,
-        height
-      ) {
-        const zone =
-          this.add
-            .zone(
-              x,
-              y,
-              width,
-              height
-            )
-            .setInteractive({
-              useHandCursor: true,
-            });
-
-        zone.setData(
-          "entityId",
-          id
-        );
-
-        zone.on(
-          "pointerover",
-          () => {
-            if (
-              this.isDecisionPhase ||
-              this.isResultPhase
-            ) {
-              return;
-            }
-
-            this.highlightSeedling(
-              id
-            );
-          }
-        );
-
-        zone.on(
-          "pointerout",
-          () => {
-            this.unhighlightSeedling(
-              id
-            );
-          }
-        );
-
-        zone.on(
-          "pointerdown",
-          () => {
-            this.inspectSeedling(
-              id,
-              zone
-            );
-          }
-        );
-
-        this.seedlingObjects[
-          id
-        ].zone = zone;
-      }
-
-      /* =====================================================
-         HIGHLIGHT
-      ===================================================== */
-
-      highlightSeedling(
-        id
-      ) {
-        const item =
-          this.seedlingObjects[
-            id
-          ];
-
-        if (!item) {
-          return;
-        }
-
-        if (
-          item.highlight
-        ) {
-          return;
-        }
-
-        const highlight =
-          this.add
-            .ellipse(
-              item.plant.x,
-              item.plant.y -
-                35,
-              125,
-              155,
-              COLORS.yellow,
-              0.13
-            )
-            .setStrokeStyle(
-              3,
-              COLORS.yellow,
-              0.75
-            )
-            .setDepth(7);
-
-        item.highlight =
-          highlight;
-
-        this.tweens.add({
-          targets:
-            highlight,
-          alpha: 0.3,
-          scale: 1.05,
-          duration: 650,
-          yoyo: true,
-          repeat: -1,
-        });
-      }
-
-      unhighlightSeedling(
-        id
-      ) {
-        const item =
-          this.seedlingObjects[
-            id
-          ];
-
-        if (
-          !item?.highlight
-        ) {
-          return;
-        }
-
-        item.highlight.destroy();
-        item.highlight =
-          null;
-      }
-
-      /* =====================================================
-         INSPECTION
-      ===================================================== */
-
-      inspectSeedling(
-        id,
-        zone
-      ) {
-        if (
-          this.isDecisionPhase ||
-          this.isResultPhase
-        ) {
-          return;
-        }
-
-        if (
-          !this.observedIds.includes(
-            id
-          )
-        ) {
-          this.observedIds.push(
-            id
-          );
-        }
-
-        this.movePlayerTo(
-          zone.x,
-          zone.y - 85
-        );
-
-        this.showSeedlingPopup(
-          id
-        );
-
-        if (
-          typeof onEntityObserved ===
-          "function"
-        ) {
-          onEntityObserved(
-            SEEDLINGS[id]
-          );
-        }
-
-        if (
-          this.observedIds
-            .length >= 2
-        ) {
-          this.time.delayedCall(
-            900,
-            () => {
-              this.enterDecisionPhase();
-            }
-          );
-        }
-      }
-
-      /* =====================================================
-         POPUP
-      ===================================================== */
-
-      showSeedlingPopup(
-        id
-      ) {
-        const data =
-          SEEDLINGS[id];
-
-        if (!data) {
-          return;
-        }
-
-        if (this.popup) {
-          this.popup.destroy();
-        }
-
-        const positions = {
-          a: {
-            x: 120,
-            y: 285,
-          },
-          b: {
-            x: 350,
-            y: 285,
-          },
-          c: {
-            x: 580,
-            y: 285,
-          },
-        };
-
-        const pos =
-          positions[id];
-
-        const popup =
-          this.add.container(
-            pos.x,
-            pos.y
-          );
-
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              270,
-              125,
-              COLORS.panel,
-              0.98
-            )
-            .setStrokeStyle(
-              2,
-              COLORS.yellow,
-              1
-            );
-
-        const badge =
-          this.add
-            .rectangle(
-              -92,
-              -43,
-              72,
-              23,
-              this.getQualityColor(
-                data.quality
-              ),
-              1
-            );
-
-        const badgeText =
-          this.add.text(
-            -116,
-            -50,
-            this.getQualityLabel(
-              data.quality
-            ),
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "9px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          );
-
-        const title =
-          this.add.text(
-            -116,
-            -20,
-            data.title,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "18px",
-              fontStyle:
-                "bold",
-              color:
-                "#253126",
-            }
-          );
-
-        const metric =
-          this.add.text(
-            -116,
-            5,
-            data.metric,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "13px",
-              fontStyle:
-                "bold",
-              color:
-                "#C45A50",
-            }
-          );
-
-        const detail =
-          this.add.text(
-            -116,
-            27,
-            data.detail,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "10px",
-              color:
-                "#647067",
-              wordWrap: {
-                width: 235,
-              },
-              lineSpacing: 2,
-            }
-          );
-
-        popup.add([
-          bg,
-          badge,
-          badgeText,
-          title,
-          metric,
-          detail,
-        ]);
-
-        popup.setDepth(
-          40
-        );
-
-        popup.setScale(
-          0.85
-        );
-
-        this.tweens.add({
-          targets:
-            popup,
-          scale: 1,
-          duration: 180,
-          ease: "Back.Out",
-        });
-
-        this.popup =
-          popup;
-
-        this.time.delayedCall(
-          4500,
-          () => {
-            if (
-              this.popup ===
-              popup
-            ) {
-              popup.destroy();
-              this.popup =
-                null;
-            }
-          }
-        );
-      }
-
-      getQualityColor(
-        quality
-      ) {
-        if (
-          quality === "good"
-        ) {
-          return COLORS.success;
-        }
-
-        if (
-          quality === "danger"
-        ) {
-          return COLORS.danger;
-        }
-
-        return COLORS.warning;
-      }
-
-      getQualityLabel(
-        quality
-      ) {
-        if (
-          quality === "good"
-        ) {
-          return "SEHAT";
-        }
-
-        if (
-          quality === "danger"
-        ) {
-          return "PERLU CEK";
-        }
-
-        return "PERHATIKAN";
-      }
-
-      /* =====================================================
-         PLAYER MOVEMENT
-      ===================================================== */
-
-      movePlayerTo(
-        x,
-        y
-      ) {
-        if (!this.player) {
-          return;
-        }
-
-        this.tweens.add({
-          targets:
-            this.player,
-          x,
-          y,
-          duration: 500,
-          ease: "Sine.Out",
-        });
-      }
-
-      /* =====================================================
-         DECISION PHASE
-      ===================================================== */
-
-      enterDecisionPhase() {
-        if (
-          this.isDecisionPhase
-        ) {
-          return;
-        }
-
-        this.isDecisionPhase =
-          true;
-
-        if (
-          typeof onObservationComplete ===
-          "function"
-        ) {
-          onObservationComplete({
-            observedIds:
-              this.observedIds,
-            complete: true,
-          });
-        }
-
-        this.showDecisionHint();
-      }
-
-      showDecisionHint() {
-        const hint =
-          this.add.container(
-            480,
-            95
-          );
-
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              470,
-              58,
-              COLORS.panel,
-              0.98
-            )
-            .setStrokeStyle(
-              2,
-              COLORS.success
-            );
-
-        const icon =
-          this.add.circle(
-            -205,
-            0,
-            16,
-            COLORS.success
-          );
-
-        const check =
-          this.add.text(
-            -211,
-            -10,
-            "✓",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "17px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          );
-
-        const title =
-          this.add.text(
-            -175,
-            -18,
-            "Kamu sudah punya cukup bukti",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "14px",
-              fontStyle:
-                "bold",
-              color:
-                "#253126",
-            }
-          );
-
-        const subtitle =
-          this.add.text(
-            -175,
-            5,
-            "Sekarang tentukan bibit mana yang siap tanam.",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "10px",
-              color:
-                "#647067",
-            }
-          );
-
-        hint.add([
-          bg,
-          icon,
-          check,
-          title,
-          subtitle,
-        ]);
-
-        hint.setDepth(
-          60
-        );
-
-        this.decisionHint =
-          hint;
-
-        this.tweens.add({
-          targets:
-            hint,
-          y: 100,
-          duration: 600,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.InOut",
-        });
-      }
-
-      /* =====================================================
-         CHOICE
-      ===================================================== */
-
-      selectChoice(
-        choice
-      ) {
-        if (
-          this.isResultPhase
-        ) {
-          return;
-        }
-
-        this.isResultPhase =
-          true;
-
-        if (
-          this.decisionHint
-        ) {
-          this.decisionHint.destroy();
-
-          this.decisionHint =
-            null;
-        }
-
-        this.animateChoice(
-          choice
-        );
-
-        this.time.delayedCall(
-          1600,
-          () => {
-            this.showResult(
-              choice
-            );
-          }
-        );
-      }
-
-      /* =====================================================
-         CONSEQUENCE
-      ===================================================== */
-
-      animateChoice(
-        choice
-      ) {
-        const item =
-          this.seedlingObjects[
-            choice.id
-          ];
-
-        if (!item) {
-          return;
-        }
-
-        /*
-         * Good choice
-         */
-
-        if (
-          choice.id === "b"
-        ) {
-          this.animateGoodChoice(
-            item
-          );
-          return;
-        }
-
-        /*
-         * Tall seedling
-         */
-
-        if (
-          choice.id === "a"
-        ) {
-          this.animateTallSeedling(
-            item
-          );
-          return;
-        }
-
-        /*
-         * Spotted seedling
-         */
-
-        if (
-          choice.id === "c"
-        ) {
-          this.animateSpottedSeedling(
-            item
-          );
-        }
-      }
-
-      /* =====================================================
-         GOOD
-      ===================================================== */
-
-      animateGoodChoice(
-        item
-      ) {
-        const plant =
-          item.plant;
-
-        /*
-         * Glow
-         */
-
-        const glow =
-          this.add
-            .ellipse(
-              plant.x,
-              plant.y -
-                35,
-              125,
-              155,
-              COLORS.success,
-              0.16
-            )
-            .setStrokeStyle(
-              4,
-              COLORS.success,
-              0.9
-            )
-            .setDepth(6);
-
-        this.tweens.add({
-          targets:
-            glow,
-          scale: 1.12,
-          alpha: 0,
-          duration: 1200,
-          onComplete: () =>
-            glow.destroy(),
-        });
-
-        /*
-         * Lift plant
-         */
-
-        this.tweens.add({
-          targets:
-            plant,
-          y:
-            plant.y - 12,
-          duration: 500,
-          yoyo: true,
-          ease: "Back.Out",
-        });
-
-        /*
-         * Sparkles
-         */
-
-        this.createSuccessParticles(
-          plant.x,
-          plant.y - 80
-        );
-      }
-
-      /* =====================================================
-         A
-      ===================================================== */
-
-      animateTallSeedling(
-        item
-      ) {
-        const plant =
-          item.plant;
-
-        this.tweens.add({
-          targets:
-            plant,
-          angle: -4,
-          duration: 250,
-          yoyo: true,
-          repeat: 2,
-        });
-
-        this.createWarningParticles(
-          plant.x,
-          plant.y - 90
-        );
-      }
-
-      /* =====================================================
-         C
-      ===================================================== */
-
-      animateSpottedSeedling(
-        item
-      ) {
-        const plant =
-          item.plant;
-
-        this.tweens.add({
-          targets:
-            plant,
-          alpha: 0.65,
-          duration: 350,
-          yoyo: true,
-          repeat: 2,
-        });
-
-        this.createDangerParticles(
-          plant.x,
-          plant.y - 75
-        );
-      }
-
-      /* =====================================================
-         PARTICLES
-      ===================================================== */
-
-      createSuccessParticles(
-        x,
-        y
-      ) {
-        for (
-          let i = 0;
-          i < 20;
-          i++
-        ) {
-          const particle =
-            this.add.star(
-              x,
-              y,
-              5,
-              2,
-              7,
-              COLORS.yellow
-            );
-
-          particle.setDepth(
-            50
-          );
-
-          this.tweens.add({
-            targets:
-              particle,
-            x:
-              x +
-              Phaser.Math.Between(
-                -80,
-                80
-              ),
-            y:
-              y +
-              Phaser.Math.Between(
-                -70,
-                20
-              ),
-            alpha: 0,
-            scale: 0,
-            duration:
-              Phaser.Math.Between(
-                500,
-                900
-              ),
-            onComplete: () =>
-              particle.destroy(),
-          });
-        }
-      }
-
-      createWarningParticles(
-        x,
-        y
-      ) {
-        for (
-          let i = 0;
-          i < 12;
-          i++
-        ) {
-          const particle =
-            this.add.circle(
-              x,
-              y,
-              Phaser.Math.Between(
-                2,
-                5
-              ),
-              COLORS.warning
-            );
-
-          particle.setDepth(
-            50
-          );
-
-          this.tweens.add({
-            targets:
-              particle,
-            x:
-              x +
-              Phaser.Math.Between(
-                -60,
-                60
-              ),
-            y:
-              y +
-              Phaser.Math.Between(
-                -50,
-                20
-              ),
-            alpha: 0,
-            duration: 700,
-            onComplete: () =>
-              particle.destroy(),
-          });
-        }
-      }
-
-      createDangerParticles(
-        x,
-        y
-      ) {
-        for (
-          let i = 0;
-          i < 12;
-          i++
-        ) {
-          const particle =
-            this.add.circle(
-              x,
-              y,
-              Phaser.Math.Between(
-                2,
-                5
-              ),
-              COLORS.danger
-            );
-
-          particle.setDepth(
-            50
-          );
-
-          this.tweens.add({
-            targets:
-              particle,
-            x:
-              x +
-              Phaser.Math.Between(
-                -60,
-                60
-              ),
-            y:
-              y +
-              Phaser.Math.Between(
-                -40,
-                30
-              ),
-            alpha: 0,
-            duration: 700,
-            onComplete: () =>
-              particle.destroy(),
-          });
-        }
-      }
-
-      /* =====================================================
-         RESULT
-      ===================================================== */
-
-      showResult(
-        choice
-      ) {
-        const result = {
-          choice,
-          observedIds:
-            this.observedIds,
-          score:
-            choice.score,
-          xp: choice.xp,
-          coins:
-            choice.coins,
-        };
-
-        if (
-          typeof onResult ===
-          "function"
-        ) {
-          onResult(result);
-        }
-
-        if (
-          typeof onComplete ===
-          "function"
-        ) {
-          onComplete(result);
-        }
-      }
-
-      /* =====================================================
-         HUD
-      ===================================================== */
-
-      createHUD() {
-        this.add
-          .rectangle(
-            480,
-            35,
-            900,
-            54,
-            COLORS.text,
-            0.94
-          )
-          .setDepth(100);
-
-        this.add
-          .text(
-            55,
-            15,
-            "🌱  PILIH BIBIT YANG SIAP TANAM",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "16px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          )
-          .setDepth(101);
-
-        this.add
-          .text(
-            55,
-            39,
-            "Jangan hanya lihat ukuran. Periksa kondisi tanaman.",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "10px",
-              color:
-                "#DCE8D8",
-            }
-          )
-          .setDepth(101);
-
-        this.evidenceCounter =
-          this.add
-            .text(
-              805,
-              22,
-              "0 / 2 BUKTI",
-              {
-                fontFamily:
-                  "Arial",
-                fontSize:
-                  "13px",
-                fontStyle:
-                  "bold",
-                color:
-                  "#FFFFFF",
-              }
-            )
-            .setDepth(101);
-      }
-
-      /* =====================================================
-         INSTRUCTIONS
-      ===================================================== */
-
-      createInstructions() {
-        const box =
-          this.add.container(
-            480,
-            575
-          );
-
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              590,
-              46,
-              COLORS.panel,
-              0.95
-            )
-            .setStrokeStyle(
-              1,
-              0xd9cdbb
-            );
-
-        const text =
-          this.add.text(
-            -265,
-            -10,
-            "👆 Klik minimal 2 bibit untuk membandingkan kondisinya.",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "12px",
-              color:
-                "#253126",
-            }
-          );
-
-        box.add([
-          bg,
-          text,
-        ]);
-
-        box.setDepth(
-          90
-        );
-
-        this.instructionBox =
-          box;
-      }
-
-      /* =====================================================
-         ANIMATION
-      ===================================================== */
-
-      animateEnvironment() {
-        /*
-         * Sun pulse
-         */
-
-        const sun =
-          this.children.list.find(
-            (item) =>
-              item.type ===
-                "Arc" &&
-              item.x ===
-                820 &&
-              item.y ===
-                115
-          );
-
-        if (sun) {
-          this.tweens.add({
-            targets:
-              sun,
-            scale: 1.08,
-            alpha: 0.75,
-            duration: 1800,
-            yoyo: true,
-            repeat: -1,
-            ease: "Sine.InOut",
-          });
-        }
-
-        /*
-         * Seedling idle animation
-         */
-
-        Object.values(
-          this.seedlingObjects
-        ).forEach(
-          (item, index) => {
-            this.tweens.add({
-              targets:
-                item.plant,
-              angle:
-                index % 2 === 0
-                  ? -1.5
-                  : 1.5,
-              duration:
-                1500 +
-                index * 100,
-              yoyo: true,
-              repeat: -1,
-              ease: "Sine.InOut",
-            });
-          }
-        );
-      }
-
-      /* =====================================================
-         UPDATE
-      ===================================================== */
-
-      update() {
-        if (
-          this.evidenceCounter
-        ) {
-          this.evidenceCounter.setText(
-            `${this.observedIds.length} / 2 BUKTI`
-          );
-        }
-      }
-    }
-
-    const config = {
-      type: Phaser.AUTO,
-
-      parent:
-        containerRef.current,
-
-      width:
-        GAME_WIDTH,
-
-      height:
-        GAME_HEIGHT,
-
-      backgroundColor:
-        "#DCECF2",
-
-      render: {
-        antialias: true,
-        pixelArt: false,
-      },
-
-      scale: {
-        mode:
-          Phaser.Scale.FIT,
-
-        autoCenter:
-          Phaser.Scale.CENTER_BOTH,
-
-        width:
-          GAME_WIDTH,
-
-        height:
-          GAME_HEIGHT,
-      },
-
-      physics: {
-        default: "arcade",
-
-        arcade: {
-          debug: false,
+  const safeMission =
+    mission || {};
+
+  const entities =
+    safeMission.entities ||
+    [];
+
+  const choices =
+    safeMission.choices ||
+    [];
+
+  const [
+    phase,
+    setPhase,
+  ] = useState(
+    PHASES.INTRO
+  );
+
+  const [
+    selectedEntity,
+    setSelectedEntity,
+  ] = useState(null);
+
+  const [
+    observedIds,
+    setObservedIds,
+  ] = useState([]);
+
+  const [
+    selectedChoice,
+    setSelectedChoice,
+  ] = useState(null);
+
+  const [
+    result,
+    setResult,
+  ] = useState(
+    DEFAULT_RESULT
+  );
+
+  const [
+    showHint,
+    setShowHint,
+  ] = useState(false);
+
+  const [
+    dialogueIndex,
+    setDialogueIndex,
+  ] = useState(0);
+
+  const [
+    revealChoice,
+    setRevealChoice,
+  ] = useState(null);
+
+  const [
+    finished,
+    setFinished,
+  ] = useState(false);
+
+  const [
+    animationKey,
+    setAnimationKey,
+  ] = useState(0);
+
+  const completionCalled =
+    useRef(false);
+
+  /* =======================================================
+     INTRO NARRATIVE
+  ======================================================= */
+
+  const introNarrative =
+    useMemo(
+      () => [
+        {
+          speaker:
+            "KAMU",
+          text:
+            "Hari ini kamu akan memindahkan bibit cabai ke lahan.",
         },
-      },
-
-      scene: [
-        BibitScene,
+        {
+          speaker:
+            "PETANI SENIOR",
+          text:
+            "Sebelum memilih, jangan hanya lihat mana yang paling tinggi.",
+        },
+        {
+          speaker:
+            "PETANI SENIOR",
+          text:
+            "Tanaman yang terlihat besar belum tentu paling siap ditanam.",
+        },
       ],
-    };
+      []
+    );
 
-    const game =
-      new Phaser.Game(
-        config
+  const currentDialogue =
+    introNarrative[
+      dialogueIndex
+    ];
+
+  /* =======================================================
+     RESET
+  ======================================================= */
+
+  const resetGame =
+    useCallback(() => {
+      completionCalled.current =
+        false;
+
+      setPhase(
+        PHASES.INTRO
       );
 
-    gameRef.current =
-      game;
+      setSelectedEntity(
+        null
+      );
 
-    /*
-     * API untuk Academy.jsx
-     */
+      setObservedIds(
+        []
+      );
 
-    game.bibitGame = {
-      observe: (
-        entityId
-      ) => {
-        const scene =
-          game.scene.getScene(
-            "BibitScene"
-          );
+      setSelectedChoice(
+        null
+      );
 
-        if (!scene) {
+      setResult(
+        DEFAULT_RESULT
+      );
+
+      setShowHint(
+        false
+      );
+
+      setDialogueIndex(
+        0
+      );
+
+      setRevealChoice(
+        null
+      );
+
+      setFinished(
+        false
+      );
+
+      setAnimationKey(
+        (value) =>
+          value + 1
+      );
+    }, []);
+
+  /* =======================================================
+     INTRO
+  ======================================================= */
+
+  const nextDialogue =
+    useCallback(() => {
+      if (
+        dialogueIndex <
+        introNarrative.length -
+          1
+      ) {
+        setDialogueIndex(
+          (value) =>
+            value + 1
+        );
+
+        return;
+      }
+
+      setPhase(
+        PHASES.OBSERVE
+      );
+    }, [
+      dialogueIndex,
+      introNarrative.length,
+    ]);
+
+  /* =======================================================
+     OBSERVATION
+  ======================================================= */
+
+  const handleEntityClick =
+    useCallback(
+      (entity) => {
+        if (!entity) {
           return;
         }
 
-        const zone =
-          scene.seedlingObjects[
-            entityId
-          ]?.zone;
+        setSelectedEntity(
+          entity.id
+        );
 
-        if (zone) {
-          scene.inspectSeedling(
-            entityId,
-            zone
-          );
-        }
-      },
+        setObservedIds(
+          (previous) => {
+            if (
+              previous.includes(
+                entity.id
+              )
+            ) {
+              return previous;
+            }
 
-      choose: (
-        choice
-      ) => {
-        const scene =
-          game.scene.getScene(
-            "BibitScene"
-          );
+            const next = [
+              ...previous,
+              entity.id,
+            ];
 
-        if (!scene) {
-          return;
-        }
+            if (
+              onEntityObserved
+            ) {
+              onEntityObserved(
+                entity
+              );
+            }
 
-        scene.selectChoice(
-          choice
+            return next;
+          }
+        );
+
+        setShowHint(
+          false
         );
       },
+      [onEntityObserved]
+    );
 
-      replay: () => {
-        const scene =
-          game.scene.getScene(
-            "BibitScene"
-          );
+  const allObserved =
+    entities.length > 0 &&
+    observedIds.length >=
+      entities.length;
 
-        if (!scene) {
-          return;
-        }
-
-        scene.scene.restart();
-      },
-    };
-
-    return () => {
-      if (
-        gameRef.current
-      ) {
-        gameRef.current.destroy(
+  const continueToChoice =
+    useCallback(() => {
+      if (!allObserved) {
+        setShowHint(
           true
         );
 
-        gameRef.current =
-          null;
+        return;
       }
+
+      if (
+        onObservationComplete
+      ) {
+        onObservationComplete({
+          observed:
+            observedIds,
+        });
+      }
+
+      setPhase(
+        PHASES.CHOOSE
+      );
+
+      setSelectedEntity(
+        null
+      );
+
+      setAnimationKey(
+        (value) =>
+          value + 1
+      );
+    }, [
+      allObserved,
+      observedIds,
+      onObservationComplete,
+    ]);
+
+  /* =======================================================
+     CHOICE
+  ======================================================= */
+
+  const handleChoice =
+    useCallback(
+      (choice) => {
+        if (!choice) {
+          return;
+        }
+
+        setSelectedChoice(
+          choice.id
+        );
+
+        setRevealChoice(
+          choice.id
+        );
+
+        setResult({
+          score:
+            Number(
+              choice.score || 0
+            ),
+          xp:
+            Number(
+              choice.xp ||
+                safeMission.xp ||
+                0
+            ),
+          coins:
+            Number(
+              choice.coins || 0
+            ),
+        });
+
+        if (onResult) {
+          onResult({
+            score:
+              Number(
+                choice.score || 0
+              ),
+            xp:
+              Number(
+                choice.xp ||
+                  safeMission.xp ||
+                  0
+              ),
+            coins:
+              Number(
+                choice.coins || 0
+              ),
+            choice:
+              choice.id,
+          });
+        }
+
+        setPhase(
+          PHASES.RESULT
+        );
+
+        setAnimationKey(
+          (value) =>
+            value + 1
+        );
+      },
+      [
+        onResult,
+        safeMission.xp,
+      ]
+    );
+
+  /* =======================================================
+     RESULT
+  ======================================================= */
+
+  const continueToDiscussion =
+    useCallback(() => {
+      setPhase(
+        PHASES.DISCUSSION
+      );
+
+      setAnimationKey(
+        (value) =>
+          value + 1
+      );
+    }, []);
+
+  /* =======================================================
+     COMPLETE
+  ======================================================= */
+
+  const completeGame =
+    useCallback(() => {
+      if (
+        completionCalled.current
+      ) {
+        return;
+      }
+
+      completionCalled.current =
+        true;
+
+      setFinished(
+        true
+      );
+
+      const choice =
+        getMissionChoice(
+          safeMission,
+          selectedChoice
+        );
+
+      const finalResult = {
+        score:
+          Number(
+            result.score || 0
+          ),
+
+        xp:
+          Number(
+            result.xp ||
+              choice?.xp ||
+              safeMission.xp ||
+              0
+          ),
+
+        coins:
+          Number(
+            result.coins ||
+              choice?.coins ||
+              0
+          ),
+
+        choice:
+          selectedChoice,
+
+        missionId:
+          safeMission.id,
+
+        observed:
+          observedIds,
+      };
+
+      /*
+       * onComplete dipanggil PALING AKHIR.
+       *
+       * Academy.jsx akan:
+       * - menyimpan reward
+       * - menandai mission selesai
+       * - menutup game
+       * - kembali ke Academy
+       */
+      if (onComplete) {
+        onComplete(
+          finalResult
+        );
+      }
+    }, [
+      onComplete,
+      observedIds,
+      result,
+      safeMission,
+      selectedChoice,
+    ]);
+
+  /* =======================================================
+     KEYBOARD
+  ======================================================= */
+
+  useEffect(() => {
+    const handleKeyDown =
+      (event) => {
+        if (
+          event.key ===
+          "Escape"
+        ) {
+          if (
+            phase ===
+            PHASES.INTRO
+          ) {
+            onExit?.();
+          }
+        }
+
+        if (
+          event.key ===
+          "Enter"
+        ) {
+          if (
+            phase ===
+            PHASES.INTRO
+          ) {
+            nextDialogue();
+          }
+
+          if (
+            phase ===
+            PHASES.OBSERVE &&
+            allObserved
+          ) {
+            continueToChoice();
+          }
+
+          if (
+            phase ===
+              PHASES.RESULT &&
+            revealChoice
+          ) {
+            continueToDiscussion();
+          }
+        }
+      };
+
+    window.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
     };
   }, [
-    mission,
-    onEntityObserved,
-    onObservationComplete,
-    onResult,
-    onComplete,
+    allObserved,
+    continueToChoice,
+    continueToDiscussion,
+    nextDialogue,
     onExit,
+    phase,
+    revealChoice,
   ]);
+
+  /* =======================================================
+     EMPTY STATE
+  ======================================================= */
+
+  if (!mission) {
+    return (
+      <div className="bibit-game bibit-game--empty">
+        <div>
+          <Sprout
+            size={36}
+          />
+
+          <h2>
+            Studi kasus tidak
+            ditemukan
+          </h2>
+
+          <button
+            type="button"
+            onClick={
+              onExit
+            }
+          >
+            Kembali
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* =======================================================
+     MAIN
+  ======================================================= */
 
   return (
     <div
-      ref={containerRef}
-      className="bibit-game-container"
-      style={{
-        width: "100%",
-        minHeight: 620,
-        overflow: "hidden",
-        borderRadius: 20,
-      }}
-    />
+      key={animationKey}
+      className={`bibit-game bibit-game--${phase}`}
+    >
+      {/* ===================================================
+          BACKGROUND
+      =================================================== */}
+
+      <div
+        className="bibit-game__background"
+        aria-hidden="true"
+      >
+        <div className="bibit-cloud bibit-cloud--one" />
+        <div className="bibit-cloud bibit-cloud--two" />
+        <div className="bibit-sun" />
+
+        <div className="bibit-field">
+          <div className="bibit-field__row bibit-field__row--one" />
+          <div className="bibit-field__row bibit-field__row--two" />
+          <div className="bibit-field__row bibit-field__row--three" />
+        </div>
+      </div>
+
+      {/* ===================================================
+          TOP BAR
+      =================================================== */}
+
+      <header className="bibit-topbar">
+        <button
+          type="button"
+          className="bibit-exit"
+          onClick={
+            onExit
+          }
+          aria-label="Keluar dari game"
+        >
+          <ArrowLeft
+            size={18}
+          />
+
+          <span>
+            Academy
+          </span>
+        </button>
+
+        <div className="bibit-topbar__mission">
+          <span>
+            STUDI KASUS
+          </span>
+
+          <strong>
+            {
+              safeMission.title
+            }
+          </strong>
+        </div>
+
+        <div className="bibit-topbar__xp">
+          <Zap
+            size={16}
+          />
+
+          <span>
+            +{
+              safeMission.xp ||
+              0
+            } XP
+          </span>
+        </div>
+      </header>
+
+      {/* ===================================================
+          INTRO
+      =================================================== */}
+
+      {phase ===
+        PHASES.INTRO && (
+        <section className="bibit-intro">
+          <div className="bibit-intro__illustration">
+            <div className="bibit-intro__glow" />
+
+            <div className="bibit-intro__plant">
+              <div className="bibit-pot">
+                <div className="bibit-pot__soil" />
+              </div>
+
+              <div className="bibit-stem" />
+
+              <div className="bibit-leaf bibit-leaf--left" />
+              <div className="bibit-leaf bibit-leaf--right" />
+
+              <div className="bibit-leaf bibit-leaf--top" />
+            </div>
+
+            <div className="bibit-floating-tag">
+              <Sparkles
+                size={15}
+              />
+
+              <span>
+                Misi Pembibitan
+              </span>
+            </div>
+          </div>
+
+          <div className="bibit-intro__content">
+            <div className="bibit-kicker">
+              <Gamepad2
+                size={15}
+              />
+
+              MINI CASE 02
+            </div>
+
+            <h1>
+              {
+                safeMission.title
+              }
+            </h1>
+
+            <p className="bibit-intro__description">
+              {
+                safeMission.shortDescription
+              }
+            </p>
+
+            <div className="bibit-story-card">
+              <div className="bibit-story-avatar">
+                🧑‍🌾
+              </div>
+
+              <div>
+                <span>
+                  {
+                    currentDialogue
+                      ?.speaker
+                  }
+                </span>
+
+                <p>
+                  {
+                    currentDialogue
+                      ?.text
+                  }
+                </p>
+              </div>
+            </div>
+
+            <div className="bibit-dialogue-progress">
+              {introNarrative.map(
+                (
+                  _,
+                  index
+                ) => (
+                  <span
+                    key={
+                      index
+                    }
+                    className={
+                      index <=
+                      dialogueIndex
+                        ? "is-active"
+                        : ""
+                    }
+                  />
+                )
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="bibit-primary-button"
+              onClick={
+                nextDialogue
+              }
+            >
+              <span>
+                {dialogueIndex <
+                introNarrative.length -
+                  1
+                  ? "Lanjut"
+                  : "Mulai Mengamati"}
+              </span>
+
+              <ArrowRight
+                size={19}
+              />
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* ===================================================
+          OBSERVE
+      =================================================== */}
+
+      {phase ===
+        PHASES.OBSERVE && (
+        <section className="bibit-observe">
+          <div className="bibit-section-heading">
+            <div>
+              <span>
+                LANGKAH 01 · AMATI
+              </span>
+
+              <h2>
+                Jangan buru-buru
+                memilih.
+              </h2>
+
+              <p>
+                Tap setiap bibit untuk
+                mencari petunjuk. Kamu
+                perlu mengumpulkan semua
+                bukti sebelum mengambil
+                keputusan.
+              </p>
+            </div>
+
+            <div className="bibit-observe-counter">
+              <Eye
+                size={18}
+              />
+
+              <strong>
+                {
+                  observedIds.length
+                }
+                /
+                {
+                  entities.length
+                }
+              </strong>
+
+              <span>
+                diamati
+              </span>
+            </div>
+          </div>
+
+          {/* ===============================================
+              VISUAL BIBIT
+          =============================================== */}
+
+          <div className="bibit-plants-stage">
+            {entities.map(
+              (
+                entity,
+                index
+              ) => {
+                const observed =
+                  observedIds.includes(
+                    entity.id
+                  );
+
+                const selected =
+                  selectedEntity ===
+                  entity.id;
+
+                return (
+                  <button
+                    key={
+                      entity.id
+                    }
+                    type="button"
+                    className={`bibit-plant-card bibit-plant-card--${index + 1} ${
+                      observed
+                        ? "is-observed"
+                        : ""
+                    } ${
+                      selected
+                        ? "is-selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      handleEntityClick(
+                        entity
+                      )
+                    }
+                  >
+                    <div className="bibit-plant-card__number">
+                      {
+                        index +
+                        1
+                      }
+                    </div>
+
+                    <div className="bibit-plant-visual">
+                      <div className="bibit-plant__leaves">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+
+                      <div className="bibit-plant__stem" />
+
+                      <div className="bibit-plant__soil" />
+
+                      <div className="bibit-plant__pot" />
+                    </div>
+
+                    <div className="bibit-plant-card__label">
+                      <strong>
+                        {
+                          entity.label
+                        }
+                      </strong>
+
+                      <span>
+                        Tap untuk
+                        mengamati
+                      </span>
+                    </div>
+
+                    {observed && (
+                      <div className="bibit-observed-badge">
+                        <Check
+                          size={13}
+                        />
+
+                        DITEMUKAN
+                      </div>
+                    )}
+                  </button>
+                );
+              }
+            )}
+          </div>
+
+          {/* ===============================================
+              OBSERVATION DETAIL
+          =============================================== */}
+
+          <div className="bibit-observation-panel">
+            {!selectedEntity ? (
+              <div className="bibit-observation-empty">
+                <Eye
+                  size={22}
+                />
+
+                <div>
+                  <strong>
+                    Cari petunjuk
+                  </strong>
+
+                  <span>
+                    Pilih salah satu
+                    bibit untuk melihat
+                    kondisinya.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              (() => {
+                const entity =
+                  entities.find(
+                    (item) =>
+                      item.id ===
+                      selectedEntity
+                  );
+
+                if (!entity) {
+                  return null;
+                }
+
+                return (
+                  <div className="bibit-observation-detail">
+                    <div className="bibit-observation-detail__icon">
+                      🌱
+                    </div>
+
+                    <div className="bibit-observation-detail__copy">
+                      <span>
+                        {
+                          entity.subtitle
+                        }
+                      </span>
+
+                      <strong>
+                        {
+                          entity.metric
+                        }
+                      </strong>
+
+                      <p>
+                        {
+                          entity.detail
+                        }
+                      </p>
+                    </div>
+
+                    <div className="bibit-observation-found">
+                      <Check
+                        size={17}
+                      />
+
+                      Petunjuk
+                      ditemukan
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </div>
+
+          {showHint && (
+            <div className="bibit-hint">
+              <Sparkles
+                size={17}
+              />
+
+              <span>
+                Amati semua bibit dulu.
+                Petani yang baik tidak
+                mengambil keputusan hanya
+                dari satu tanda.
+              </span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="bibit-primary-button bibit-primary-button--wide"
+            disabled={!allObserved}
+            onClick={
+              continueToChoice
+            }
+          >
+            <span>
+              {allObserved
+                ? "Saya Sudah Mengamati"
+                : `Amati ${
+                    entities.length -
+                    observedIds.length
+                  } bibit lagi`}
+            </span>
+
+            <ArrowRight
+              size={19}
+            />
+          </button>
+        </section>
+      )}
+
+      {/* ===================================================
+          CHOOSE
+      =================================================== */}
+
+      {phase ===
+        PHASES.CHOOSE && (
+        <section className="bibit-choice">
+          <div className="bibit-choice__top">
+            <div className="bibit-choice__visual">
+              <div className="bibit-choice__sun">
+                ☀️
+              </div>
+
+              <div className="bibit-choice__field">
+                <div className="bibit-mini-plant">
+                  <span />
+                  <span />
+                  <span />
+                  <i />
+                </div>
+
+                <div className="bibit-mini-plant bibit-mini-plant--two">
+                  <span />
+                  <span />
+                  <span />
+                  <i />
+                </div>
+
+                <div className="bibit-mini-plant bibit-mini-plant--three">
+                  <span />
+                  <span />
+                  <span />
+                  <i />
+                </div>
+              </div>
+            </div>
+
+            <div className="bibit-choice__heading">
+              <span>
+                LANGKAH 02 · PUTUSKAN
+              </span>
+
+              <h2>
+                Mana yang paling
+                siap ditanam?
+              </h2>
+
+              <p>
+                Kamu sudah mengamati
+                ketiganya. Sekarang
+                gunakan bukti yang kamu
+                temukan.
+              </p>
+            </div>
+          </div>
+
+          <div className="bibit-choice__question">
+            <div>
+              <Sparkles
+                size={18}
+              />
+
+              <span>
+                Tantangan
+              </span>
+            </div>
+
+            <strong>
+              {
+                safeMission.question
+              }
+            </strong>
+          </div>
+
+          <div className="bibit-choice-grid">
+            {choices.map(
+              (
+                choice,
+                index
+              ) => (
+                <button
+                  type="button"
+                  key={
+                    choice.id
+                  }
+                  className="bibit-choice-card"
+                  onClick={() =>
+                    handleChoice(
+                      choice
+                    )
+                  }
+                >
+                  <div className="bibit-choice-card__visual">
+                    <div className="bibit-choice-plant">
+                      <span className="leaf leaf--one" />
+                      <span className="leaf leaf--two" />
+                      <span className="leaf leaf--three" />
+                      <span className="stem" />
+                      <span className="soil" />
+                      <span className="pot" />
+                    </div>
+
+                    <div className="bibit-choice-number">
+                      {String.fromCharCode(
+                        65 +
+                          index
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bibit-choice-card__body">
+                    <strong>
+                      {
+                        choice.label
+                      }
+                    </strong>
+
+                    <p>
+                      {
+                        choice.description
+                      }
+                    </p>
+
+                    <span>
+                      Pilih ini
+                      <ChevronRight
+                        size={15}
+                      />
+                    </span>
+                  </div>
+                </button>
+              )
+            )}
+          </div>
+
+          <div className="bibit-choice-tip">
+            💡
+            <span>
+              Tidak perlu mencari
+              jawaban yang terlihat
+              paling besar. Tanyakan:
+              <strong>
+                "Apa buktinya?"
+              </strong>
+            </span>
+          </div>
+        </section>
+      )}
+
+      {/* ===================================================
+          RESULT
+      =================================================== */}
+
+      {phase ===
+        PHASES.RESULT &&
+        revealChoice && (
+          <section className="bibit-result">
+            <div className="bibit-result__confetti">
+              <span>✦</span>
+              <span>✧</span>
+              <span>✦</span>
+              <span>✧</span>
+              <span>✦</span>
+            </div>
+
+            <div className="bibit-result__visual">
+              <div className="bibit-result__sun">
+                ☀️
+              </div>
+
+              <div className="bibit-result__ground" />
+
+              <div className="bibit-result__plant">
+                <div className="result-leaf result-leaf--one" />
+                <div className="result-leaf result-leaf--two" />
+                <div className="result-leaf result-leaf--three" />
+                <div className="result-stem" />
+                <div className="result-pot" />
+              </div>
+
+              <div className="bibit-result__badge">
+                <Trophy
+                  size={17}
+                />
+
+                Keputusanmu
+              </div>
+            </div>
+
+            <div className="bibit-result__content">
+              <div className="bibit-result__eyebrow">
+                HASIL KEPUTUSAN
+              </div>
+
+              <h2>
+                {result.score >=
+                80
+                  ? "Pilihan yang kuat! 🌱"
+                  : result.score >=
+                    50
+                  ? "Pilihanmu masuk akal, tapi..."
+                  : "Hmm, coba lihat lagi bukti yang ada."}
+              </h2>
+
+              <div className="bibit-score-card">
+                <div>
+                  <span>
+                    SKOR
+                  </span>
+
+                  <strong>
+                    {
+                      result.score
+                    }
+                  </strong>
+                  <small>
+                    / 100
+                  </small>
+                </div>
+
+                <div>
+                  <span>
+                    REWARD
+                  </span>
+
+                  <strong>
+                    +{result.xp}
+                  </strong>
+
+                  <small>
+                    XP
+                  </small>
+                </div>
+
+                <div>
+                  <span>
+                    BONUS
+                  </span>
+
+                  <strong>
+                    +{result.coins}
+                  </strong>
+
+                  <small>
+                    🪙
+                  </small>
+                </div>
+              </div>
+
+              <div className="bibit-feedback-card">
+                <div className="bibit-feedback-card__icon">
+                  {result.score >=
+                  80
+                    ? "🎯"
+                    : "💭"}
+                </div>
+
+                <div>
+                  <span>
+                    KONSEKUENSI
+                  </span>
+
+                  <p>
+                    {
+                      getMissionChoice(
+                        safeMission,
+                        selectedChoice
+                      )?.feedback
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="bibit-primary-button bibit-primary-button--wide"
+                onClick={
+                  continueToDiscussion
+                }
+              >
+                <span>
+                  Lihat Pembahasan
+                </span>
+
+                <ArrowRight
+                  size={19}
+                />
+              </button>
+            </div>
+          </section>
+        )}
+
+      {/* ===================================================
+          DISCUSSION
+      =================================================== */}
+
+      {phase ===
+        PHASES.DISCUSSION && (
+        <section className="bibit-discussion">
+          <div className="bibit-discussion__illustration">
+            <div className="bibit-discussion__sun">
+              ☀️
+            </div>
+
+            <div className="bibit-discussion__field">
+              <div className="discussion-plant discussion-plant--bad">
+                <span />
+                <span />
+                <i />
+              </div>
+
+              <div className="discussion-plant discussion-plant--good">
+                <span />
+                <span />
+                <span />
+                <span />
+                <i />
+              </div>
+
+              <div className="discussion-ground" />
+            </div>
+
+            <div className="bibit-discussion__character">
+              🧑‍🌾
+            </div>
+
+            <div className="bibit-discussion__bubble">
+              <Sparkles
+                size={15}
+              />
+
+              <span>
+                Sekarang kamu tahu
+                alasannya.
+              </span>
+            </div>
+          </div>
+
+          <div className="bibit-discussion__content">
+            <div className="bibit-kicker">
+              <Leaf
+                size={15}
+              />
+
+              PEMBAHASAN
+            </div>
+
+            <h2>
+              Jangan tertipu
+              penampilan bibit.
+            </h2>
+
+            <p className="bibit-discussion__lead">
+              Dalam kasus ini, kunci
+              keputusan bukan sekadar
+              ukuran tanaman. Kamu perlu
+              melihat kondisi tanaman
+              secara keseluruhan.
+            </p>
+
+            <div className="bibit-learning-card">
+              <div className="bibit-learning-card__icon">
+                🧠
+              </div>
+
+              <div>
+                <span>
+                  YANG PERLU DIINGAT
+                </span>
+
+                <strong>
+                  {
+                    getMissionChoice(
+                      safeMission,
+                      selectedChoice
+                    )?.learning
+                  }
+                </strong>
+              </div>
+            </div>
+
+            <div className="bibit-comparison">
+              {entities.map(
+                (
+                  entity,
+                  index
+                ) => (
+                  <div
+                    key={
+                      entity.id
+                    }
+                    className={`bibit-comparison-item ${
+                      selectedChoice ===
+                      entity.id
+                        ? "is-selected"
+                        : ""
+                    }`}
+                  >
+                    <div className="bibit-comparison-number">
+                      {
+                        String.fromCharCode(
+                          65 +
+                            index
+                        )
+                      }
+                    </div>
+
+                    <div>
+                      <strong>
+                        {
+                          entity.label
+                        }
+                      </strong>
+
+                      <span>
+                        {
+                          entity.metric
+                        }
+                      </span>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+
+            <div className="bibit-final-message">
+              <div>
+                <Trophy
+                  size={21}
+                />
+              </div>
+
+              <p>
+                Kamu tidak harus langsung
+                tahu semuanya. Yang penting
+                adalah belajar membaca bukti
+                sebelum mengambil keputusan.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="bibit-complete-button"
+              onClick={
+                completeGame
+              }
+              disabled={finished}
+            >
+              {finished ? (
+                <>
+                  <Check
+                    size={19}
+                  />
+
+                  Menyelesaikan...
+                </>
+              ) : (
+                <>
+                  <Trophy
+                    size={19}
+                  />
+
+                  Selesaikan Studi Kasus
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="bibit-replay-button"
+              onClick={
+                resetGame
+              }
+            >
+              <RotateCcw
+                size={15}
+              />
+
+              Mainkan ulang
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* ===================================================
+          MOBILE NAVIGATION
+      =================================================== */}
+
+      <footer className="bibit-mobile-footer">
+        <div className="bibit-mobile-footer__status">
+          <span>
+            {phase ===
+              PHASES.INTRO &&
+              "Cerita"}
+
+            {phase ===
+              PHASES.OBSERVE &&
+              `Observasi ${observedIds.length}/${entities.length}`}
+
+            {phase ===
+              PHASES.CHOOSE &&
+              "Ambil keputusan"}
+
+            {phase ===
+              PHASES.RESULT &&
+              "Lihat konsekuensi"}
+
+            {phase ===
+              PHASES.DISCUSSION &&
+              "Pembahasan"}
+          </span>
+
+          <div>
+            <i
+              className={
+                phase ===
+                PHASES.INTRO
+                  ? "is-active"
+                  : ""
+              }
+            />
+
+            <i
+              className={
+                phase ===
+                PHASES.OBSERVE
+                  ? "is-active"
+                  : ""
+              }
+            />
+
+            <i
+              className={
+                phase ===
+                PHASES.CHOOSE
+                  ? "is-active"
+                  : ""
+              }
+            />
+
+            <i
+              className={
+                phase ===
+                PHASES.RESULT
+                  ? "is-active"
+                  : ""
+              }
+            />
+
+            <i
+              className={
+                phase ===
+                PHASES.DISCUSSION
+                  ? "is-active"
+                  : ""
+              }
+            />
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }

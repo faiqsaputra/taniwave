@@ -1,2378 +1,1082 @@
+import React, { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
-import { useEffect, useRef } from "react";
 
-/**
- * ============================================================
- * CABAI GAME
- * SMART ACADEMY
- * Case: Cabai Setelah Hujan
- *
- * FLOW:
- *
- * 01. Observe kebun
- * 02. Cari minimal 2 bukti
- * 03. Pilih keputusan
- * 04. Lihat konsekuensi
- * 05. Dapatkan reward
- * 06. Praktik di dunia nyata
- *
- * Designed for:
- * - Desktop
- * - Tablet
- * - Mobile landscape
- *
- * Logical resolution:
- * 1280 x 720
- * Aspect ratio:
- * 16:9
- * ============================================================
- */
+/* =========================================================
+   CABAI GAME
+   Smart Academy
+   Case: Cabai Setelah Hujan
+========================================================= */
 
-const GAME_WIDTH = 1280;
-const GAME_HEIGHT = 720;
+/*
+  Props yang didukung:
 
-const COLORS = {
-  sky: 0xbdd9e7,
-  skyDark: 0x9fc5d8,
+  <CabaiGame
+    mission={mission}
+    onComplete={handleComplete}
+    onBack={handleBack}
+  />
 
-  grass: 0x91bd62,
-  grassDark: 0x6f9d4d,
-  grassLight: 0xaed276,
+  mission bisa berasal dari MISSIONS di Academy.jsx.
+*/
 
-  soil: 0x7b5134,
-  soilDark: 0x5e3d29,
-  soilLight: 0x95643f,
 
-  leaf: 0x4f8f42,
-  leafDark: 0x356c31,
-  leafLight: 0x76aa52,
+/* =========================================================
+   GAME CONFIG
+========================================================= */
 
-  chili: 0xd94f3f,
-  chiliDark: 0xb93b32,
+const GAME_CONFIG = {
+  theme: {
+    bg: "#111611",
+    panel: "#193326",
+    panelDark: "#13271e",
+    green: "#315d3e",
+    greenLight: "#7eb85a",
+    soil: "#704a2d",
+    soilLight: "#8a5d38",
+    sky: "#b9dbe8",
+    mountain: "#9dbb9b",
+    mountainDark: "#789d7b",
+    yellow: "#f1c84b",
+    orange: "#ef613d",
+    white: "#f7f4e9",
+    muted: "#9da69e",
+    danger: "#e96b50",
+    success: "#83bd59",
+  },
 
-  water: 0x64b7dc,
-  waterLight: 0x9cdbf2,
+  /* =======================================================
+     ASSET CONFIG
 
-  yellow: 0xe5b83e,
-  yellowLight: 0xffd965,
+     Nanti kalau punya aset PNG/SVG sendiri,
+     cukup ganti path di sini.
 
-  cream: 0xfffcf7,
-  creamDark: 0xf4ecdf,
+     Jangan ubah logic Phaser.
+  ======================================================= */
 
-  ink: 0x203027,
-  muted: 0x657168,
+  assets: {
+    farmer: null,
+    soil: null,
+    chili: null,
+    cloud: null,
+    mountain: null,
+  },
 
-  green: 0x4e9a61,
-  greenDark: 0x367849,
+  /* =======================================================
+     HOTSPOT / BUKTI
+  ======================================================= */
 
-  orange: 0xed713d,
-  red: 0xc84d45,
+  evidence: [
+    {
+      id: "soil",
+      title: "Kondisi Tanah",
+      short: "Tanah terlalu basah",
+      description:
+        "Permukaan tanah masih jenuh air. Sebelum melakukan tindakan lain, kondisi air di sekitar akar perlu diperiksa.",
+      icon: "💧",
+    },
 
-  white: 0xffffff,
+    {
+      id: "leaf",
+      title: "Daun Cabai",
+      short: "Beberapa daun menguning",
+      description:
+        "Daun bagian bawah mulai menguning. Ini merupakan tanda yang perlu diamati, bukan diagnosis tunggal.",
+      icon: "🌱",
+    },
+  ],
 
-  navy: 0x203b2c,
+  /* =======================================================
+     DECISION
+  ======================================================= */
+
+  decisions: [
+    {
+      id: "drain",
+      title: "Periksa dan buka drainase",
+      description:
+        "Kurangi genangan sebelum memberikan input tambahan.",
+      score: 100,
+      coins: 30,
+      feedback:
+        "Keputusanmu tepat. Kamu memeriksa kondisi lingkungan akar terlebih dahulu sebelum memberikan perlakuan.",
+      learning:
+        "Kenali penyebab masalah sebelum menambah pupuk atau air.",
+    },
+
+    {
+      id: "fertilize",
+      title: "Langsung tambah pupuk",
+      description:
+        "Berikan nutrisi agar daun cepat hijau.",
+      score: 45,
+      coins: 10,
+      feedback:
+        "Nutrisi bukan selalu jawaban pertama. Saat tanah terlalu basah, kondisi air dan akar sebaiknya diperiksa terlebih dahulu.",
+      learning:
+        "Jangan menambah input sebelum memahami kondisi lahan.",
+    },
+
+    {
+      id: "water",
+      title: "Tambah penyiraman",
+      description:
+        "Sirami tanaman supaya tidak kekurangan air.",
+      score: 20,
+      coins: 5,
+      feedback:
+        "Tanah sudah menunjukkan kondisi terlalu basah. Menambah air justru dapat memperburuk kondisi.",
+      learning:
+        "Gunakan kondisi tanah sebagai bukti sebelum menyiram.",
+    },
+  ],
 };
 
-/* ============================================================
-   EVIDENCE
-============================================================ */
 
-const EVIDENCE = {
-  soil: {
-    id: "soil",
-    title: "Tanah",
-    subtitle: "KELEMBAPAN",
-    metric: "Terlalu basah",
-    detail:
-      "Permukaan tanah masih jenuh air. Kondisinya belum kembali ke kelembapan yang ideal.",
-  },
+/* =========================================================
+   UTILITY
+========================================================= */
 
-  leaf: {
-    id: "leaf",
-    title: "Daun cabai",
-    subtitle: "GEJALA",
-    metric: "Mulai menguning",
-    detail:
-      "Beberapa daun bagian bawah tampak menguning. Ini adalah gejala yang perlu diamati, bukan diagnosis tunggal.",
-  },
+const clamp = (value, min, max) =>
+  Math.max(min, Math.min(max, value));
 
-  drainage: {
-    id: "drainage",
-    title: "Drainase",
-    subtitle: "ALIRAN AIR",
-    metric: "Kurang lancar",
-    detail:
-      "Ada genangan kecil di sisi bedengan. Air perlu memiliki jalur keluar agar tidak terus mengendap.",
-  },
-};
 
-/* ============================================================
-   DECISIONS
-============================================================ */
+/* =========================================================
+   CABAI SCENE
+========================================================= */
 
-const DECISIONS = [
-  {
-    id: "drain",
-    title: "Periksa dan buka jalur drainase",
-    short:
-      "Kurangi genangan sebelum memberi input tambahan.",
-    score: 100,
-    xp: 80,
-    coins: 30,
-    type: "good",
+class CabaiScene extends Phaser.Scene {
+  constructor() {
+    super("CabaiScene");
 
-    feedback:
-      "Kamu memprioritaskan kondisi lingkungan akar terlebih dahulu. Setelah air terkendali, observasi berikutnya menjadi lebih masuk akal.",
+    this.w = 0;
+    this.h = 0;
 
-    learning:
-      "Kenali penyebab masalah sebelum menambah pupuk atau air.",
-  },
+    this.isPortrait = false;
 
-  {
-    id: "fertilize",
-    title: "Langsung tambah pupuk",
-    short:
-      "Berikan nutrisi agar daun cepat hijau.",
-    score: 45,
-    xp: 80,
-    coins: 10,
-    type: "warning",
+    this.evidenceFound = new Set();
 
-    feedback:
-      "Nutrisi bukan selalu jawaban pertama. Saat tanah terlalu basah, kondisi air dan akar sebaiknya diperiksa lebih dulu.",
+    this.hotspots = [];
+    this.sceneObjects = [];
 
-    learning:
-      "Jangan menambah input sebelum memahami kondisi lahan.",
-  },
+    this.onEvidenceFound = null;
+    this.onDecisionReady = null;
+  }
 
-  {
-    id: "water",
-    title: "Tambah penyiraman",
-    short:
-      "Sirami tanaman supaya tidak kekurangan air.",
-    score: 20,
-    xp: 80,
-    coins: 5,
-    type: "bad",
+  init(data) {
+    this.onEvidenceFound = data.onEvidenceFound;
+    this.onDecisionReady = data.onDecisionReady;
+  }
 
-    feedback:
-      "Kondisi tanah menunjukkan air sudah berlebih. Menambah air akan membuat kondisi yang sedang bermasalah semakin berat.",
+  create() {
+    this.setupInput();
 
-    learning:
-      "Gunakan kondisi tanah sebagai bukti sebelum menyiram.",
-  },
-];
+    this.renderScene();
 
-/* ============================================================
-   HELPERS
-============================================================ */
+    this.scale.on(
+      Phaser.Scale.Events.RESIZE,
+      this.handleResize,
+      this
+    );
+  }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+  shutdown() {
+    this.scale.off(
+      Phaser.Scale.Events.RESIZE,
+      this.handleResize,
+      this
+    );
+  }
 
-/* ============================================================
-   REACT COMPONENT
-============================================================ */
+  setupInput() {
+    this.input.on(
+      "gameobjectdown",
+      (pointer, gameObject) => {
+        if (gameObject.__hotspotId) {
+          this.collectEvidence(
+            gameObject.__hotspotId
+          );
+        }
+      }
+    );
+  }
 
-export default function CabaiGame({
-  mission,
-  onEntityObserved,
-  onObservationComplete,
-  onResult,
-  onComplete,
-  onExit,
-}) {
-  const containerRef = useRef(null);
-  const gameRef = useRef(null);
+  handleResize(gameSize) {
+    if (!gameSize) return;
 
-  const callbacksRef = useRef({
-    onEntityObserved,
-    onObservationComplete,
-    onResult,
-    onComplete,
-    onExit,
-  });
+    const width = Math.max(
+      1,
+      Math.round(gameSize.width)
+    );
 
-  useEffect(() => {
-    callbacksRef.current = {
-      onEntityObserved,
-      onObservationComplete,
-      onResult,
-      onComplete,
-      onExit,
-    };
-  }, [
-    onEntityObserved,
-    onObservationComplete,
-    onResult,
-    onComplete,
-    onExit,
-  ]);
+    const height = Math.max(
+      1,
+      Math.round(gameSize.height)
+    );
 
-  useEffect(() => {
-    if (!containerRef.current) {
-      return undefined;
+    this.w = width;
+    this.h = height;
+
+    this.isPortrait =
+      height > width;
+
+    this.renderScene();
+  }
+
+
+  /* =======================================================
+     MAIN RENDER
+  ======================================================= */
+
+  renderScene() {
+    if (!this.scale) return;
+
+    this.w =
+      Math.round(this.scale.width) ||
+      this.w ||
+      800;
+
+    this.h =
+      Math.round(this.scale.height) ||
+      this.h ||
+      500;
+
+    this.isPortrait =
+      this.h > this.w;
+
+    this.clearScene();
+
+    this.drawBackground();
+
+    if (this.isPortrait) {
+      this.drawPortraitLayout();
+    } else {
+      this.drawLandscapeLayout();
     }
+
+    this.drawHotspots();
+
+    this.drawInstruction();
+
+    this.drawProgress();
+
+    this.bringUIToTop();
+  }
+
+
+  /* =======================================================
+     CLEAR
+  ======================================================= */
+
+  clearScene() {
+    this.hotspots = [];
+
+    this.sceneObjects.forEach(
+      (object) => {
+        if (
+          object &&
+          object.destroy &&
+          object.active
+        ) {
+          object.destroy();
+        }
+      }
+    );
+
+    this.sceneObjects = [];
+  }
+
+
+  addObject(object) {
+    if (object) {
+      this.sceneObjects.push(object);
+    }
+
+    return object;
+  }
+
+
+  /* =======================================================
+     BACKGROUND
+  ======================================================= */
+
+  drawBackground() {
+    const bg = this.add
+      .rectangle(
+        this.w / 2,
+        this.h / 2,
+        this.w,
+        this.h,
+        Phaser.Display.Color.HexStringToColor(
+          GAME_CONFIG.theme.bg
+        ).color
+      );
+
+    this.addObject(bg);
+
+
+    /* SKY */
+
+    const skyHeight = this.isPortrait
+      ? this.h * 0.48
+      : this.h * 0.64;
+
+    const sky = this.add.rectangle(
+      this.w / 2,
+      skyHeight / 2,
+      this.w,
+      skyHeight,
+      Phaser.Display.Color.HexStringToColor(
+        GAME_CONFIG.theme.sky
+      ).color
+    );
+
+    this.addObject(sky);
+
+
+    /* SUN */
+
+    const sun = this.add.circle(
+      this.w * 0.82,
+      this.h * 0.14,
+      clamp(
+        this.w * 0.055,
+        18,
+        34
+      ),
+      0xf2d56c
+    );
+
+    this.addObject(sun);
+
+
+    /* CLOUDS */
+
+    this.drawCloud(
+      this.w * 0.18,
+      this.h * 0.17,
+      0.9
+    );
+
+    this.drawCloud(
+      this.w * 0.62,
+      this.h * 0.20,
+      0.72
+    );
+
+
+    /* MOUNTAINS */
+
+    const mountainY =
+      skyHeight * 0.70;
+
+    this.drawMountainRange(
+      mountainY
+    );
+
+
+    /* GROUND */
+
+    const groundTop = skyHeight;
+
+    const ground = this.add.rectangle(
+      this.w / 2,
+      groundTop +
+        (this.h - groundTop) / 2,
+      this.w,
+      this.h - groundTop,
+      Phaser.Display.Color.HexStringToColor(
+        "#91bd62"
+      ).color
+    );
+
+    this.addObject(ground);
+  }
+
+
+  drawMountainRange(y) {
+    const graphics =
+      this.add.graphics();
+
+    graphics.fillStyle(
+      Phaser.Display.Color.HexStringToColor(
+        GAME_CONFIG.theme.mountain
+      ).color,
+      1
+    );
+
+    const points = [
+      {
+        x: -this.w * 0.10,
+        y: y + this.h * 0.08,
+      },
+      {
+        x: this.w * 0.13,
+        y: y - this.h * 0.16,
+      },
+      {
+        x: this.w * 0.34,
+        y: y + this.h * 0.08,
+      },
+      {
+        x: this.w * 0.51,
+        y: y - this.h * 0.21,
+      },
+      {
+        x: this.w * 0.69,
+        y: y + this.h * 0.06,
+      },
+      {
+        x: this.w * 0.87,
+        y: y - this.h * 0.14,
+      },
+      {
+        x: this.w * 1.10,
+        y: y + this.h * 0.08,
+      },
+    ];
+
+    graphics.beginPath();
+
+    graphics.moveTo(
+      points[0].x,
+      points[0].y
+    );
+
+    points.slice(1).forEach(
+      (point) => {
+        graphics.lineTo(
+          point.x,
+          point.y
+        );
+      }
+    );
+
+    graphics.lineTo(
+      this.w * 1.1,
+      this.h
+    );
+
+    graphics.lineTo(
+      -this.w * 0.1,
+      this.h
+    );
+
+    graphics.closePath();
+
+    graphics.fillPath();
+
+    this.addObject(graphics);
+  }
+
+
+  drawCloud(x, y, scale = 1) {
+    const container =
+      this.add.container(x, y);
+
+    const color = 0xffffff;
+
+    const parts = [
+      [0, 0, 17],
+      [20, 2, 23],
+      [-19, 5, 13],
+      [40, 8, 13],
+    ];
+
+    parts.forEach(
+      ([px, py, radius]) => {
+        container.add(
+          this.add.circle(
+            px * scale,
+            py * scale,
+            radius * scale,
+            color,
+            0.88
+          )
+        );
+      }
+    );
+
+    this.addObject(container);
+  }
+
+
+  /* =======================================================
+     LANDSCAPE
+  ======================================================= */
+
+  drawLandscapeLayout() {
+    const top =
+      this.h * 0.28;
+
+    const bottom =
+      this.h * 0.88;
+
+    const gardenY =
+      (top + bottom) / 2;
+
+    const gardenHeight =
+      bottom - top;
+
+    const leftX =
+      this.w * 0.24;
+
+    const rightX =
+      this.w * 0.76;
+
+    const gardenWidth =
+      Math.min(
+        this.w * 0.34,
+        300
+      );
+
+
+    /* LEFT BED */
+
+    this.drawGardenBed(
+      leftX,
+      gardenY,
+      gardenWidth,
+      gardenHeight
+    );
+
+
+    /* RIGHT BED */
+
+    this.drawGardenBed(
+      rightX,
+      gardenY,
+      gardenWidth,
+      gardenHeight
+    );
+
+
+    /* FARMER */
+
+    this.drawFarmer(
+      this.w / 2,
+      gardenY + this.h * 0.03,
+      Math.min(
+        this.w,
+        this.h
+      ) * 0.11
+    );
+  }
+
+
+  /* =======================================================
+     PORTRAIT
+  ======================================================= */
+
+  drawPortraitLayout() {
+    const availableHeight =
+      this.h * 0.70;
+
+    const gardenWidth =
+      this.w * 0.70;
+
+    const gardenHeight =
+      clamp(
+        this.h * 0.18,
+        90,
+        150
+      );
+
+    const leftX =
+      this.w * 0.29;
+
+    const rightX =
+      this.w * 0.71;
+
+    const gardenY =
+      this.h * 0.60;
+
 
     /*
-     * Jangan membuat Phaser dua kali.
-     */
-    if (gameRef.current) {
-      gameRef.current.destroy(true);
-      gameRef.current = null;
+      Portrait dibuat bertingkat:
+
+      langit
+        ↓
+      kebun kiri + kanan
+        ↓
+      farmer tengah
+        ↓
+      instruction
+
+      Jadi tidak ada elemen yang dipaksa
+      masuk ke rasio landscape.
+    */
+
+    this.drawGardenBed(
+      leftX,
+      gardenY,
+      gardenWidth,
+      gardenHeight
+    );
+
+    this.drawGardenBed(
+      rightX,
+      gardenY,
+      gardenWidth,
+      gardenHeight
+    );
+
+    this.drawFarmer(
+      this.w / 2,
+      gardenY + gardenHeight * 0.08,
+      clamp(
+        this.w * 0.10,
+        30,
+        54
+      )
+    );
+  }
+
+
+  /* =======================================================
+     GARDEN BED
+  ======================================================= */
+
+  drawGardenBed(
+    x,
+    y,
+    width,
+    height
+  ) {
+    const graphics =
+      this.add.graphics();
+
+    graphics.fillStyle(
+      Phaser.Display.Color.HexStringToColor(
+        GAME_CONFIG.theme.soil
+      ).color,
+      1
+    );
+
+    graphics.fillRoundedRect(
+      x - width / 2,
+      y - height / 2,
+      width,
+      height,
+      12
+    );
+
+    graphics.fillStyle(
+      Phaser.Display.Color.HexStringToColor(
+        GAME_CONFIG.theme.soilLight
+      ).color,
+      0.4
+    );
+
+    for (
+      let row = 0;
+      row < 3;
+      row++
+    ) {
+      const rowY =
+        y -
+        height * 0.25 +
+        row * height * 0.25;
+
+      graphics.lineStyle(
+        3,
+        0x53361f,
+        0.35
+      );
+
+      graphics.beginPath();
+
+      graphics.moveTo(
+        x - width * 0.42,
+        rowY
+      );
+
+      graphics.lineTo(
+        x + width * 0.42,
+        rowY
+      );
+
+      graphics.strokePath();
     }
 
-    let sceneInstance = null;
+    this.addObject(graphics);
 
-    /* ========================================================
-       PHASER SCENE
-    ======================================================== */
 
-    class CabaiScene extends Phaser.Scene {
-      constructor() {
-        super({
-          key: "CabaiScene",
-        });
+    /* CHILI PLANTS */
 
-        this.observedIds = [];
-        this.entityObjects = {};
-        this.waterPools = [];
-        this.rainDrops = [];
-        this.plants = [];
+    const plantCount =
+      this.isPortrait
+        ? 4
+        : 5;
 
-        this.isDecisionPhase = false;
-        this.isResultPhase = false;
+    for (
+      let i = 0;
+      i < plantCount;
+      i++
+    ) {
+      const px =
+        x -
+        width * 0.34 +
+        i *
+          (width * 0.17);
 
-        this.entityPopup = null;
-        this.decisionPanel = null;
-        this.resultPanel = null;
-        this.toast = null;
+      const py =
+        y +
+        (i % 2 === 0
+          ? -height * 0.06
+          : height * 0.10);
 
-        this.player = null;
+      this.drawChiliPlant(
+        px,
+        py,
+        clamp(
+          height * 0.16,
+          12,
+          25
+        )
+      );
+    }
 
-        this.evidenceCounter = null;
-        this.phaseText = null;
-      }
 
-      /* ======================================================
-         CREATE
-      ====================================================== */
+    /* WATER PUDDLE */
 
-      create() {
-        sceneInstance = this;
+    const puddle =
+      this.add.ellipse(
+        x +
+          width * 0.34,
+        y +
+          height * 0.30,
+        width * 0.18,
+        height * 0.12,
+        0x67a9c3,
+        0.9
+      );
 
-        this.createBackground();
-        this.createWeather();
-        this.createMountains();
-        this.createField();
-        this.createPlants();
-        this.createDrainage();
-        this.createPlayer();
+    this.addObject(puddle);
+  }
 
-        this.createHUD();
-        this.createInteractionZones();
-        this.createInstructions();
 
-        this.animateEnvironment();
+  /* =======================================================
+     CHILI PLANT
+  ======================================================= */
 
-        /*
-         * Prevent browser context menu
-         * ketika long press di mobile.
-         */
-        this.input.mouse?.disableContextMenu();
+  drawChiliPlant(
+    x,
+    y,
+    size
+  ) {
+    const container =
+      this.add.container(x, y);
 
-        /*
-         * Keyboard fallback untuk desktop.
-         */
-        this.input.keyboard?.on(
-          "keydown-ESC",
-          () => {
-            callbacksRef.current.onExit?.();
-          }
-        );
-      }
+    const graphics =
+      this.add.graphics();
 
-      /* ======================================================
-         BACKGROUND
-      ====================================================== */
 
-      createBackground() {
-        const { width, height } = this.scale;
+    /* STEM */
 
-        /*
-         * Base.
-         */
-        this.add
-          .rectangle(
-            width / 2,
-            height / 2,
-            width,
-            height,
-            COLORS.grass
-          )
-          .setDepth(-20);
+    graphics.lineStyle(
+      Math.max(2, size * 0.13),
+      0x315f35,
+      1
+    );
 
-        /*
-         * Sky.
-         */
-        this.add
-          .rectangle(
-            width / 2,
-            160,
-            width,
-            320,
-            COLORS.sky
-          )
-          .setDepth(-19);
+    graphics.beginPath();
 
-        /*
-         * Ground.
-         */
-        this.add
-          .rectangle(
-            width / 2,
-            500,
-            width,
-            440,
-            COLORS.grass
-          )
-          .setDepth(-18);
+    graphics.moveTo(
+      0,
+      size * 0.7
+    );
 
-        /*
-         * Horizon.
-         */
-        this.add
-          .rectangle(
-            width / 2,
-            350,
-            width,
-            12,
-            COLORS.grassDark
-          )
-          .setDepth(-17);
+    graphics.lineTo(
+      0,
+      -size * 0.4
+    );
 
-        /*
-         * Sun.
-         */
-        const sun = this.add
-          .circle(
-            1120,
-            115,
-            46,
-            COLORS.yellowLight,
-            0.9
-          )
-          .setDepth(-15);
+    graphics.strokePath();
 
-        this.tweens.add({
-          targets: sun,
-          alpha: 0.65,
-          scale: 1.08,
-          duration: 1800,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.InOut",
-        });
 
-        /*
-         * Clouds.
-         */
-        this.createCloud(145, 110, 1);
-        this.createCloud(720, 125, 0.8);
-        this.createCloud(1030, 180, 0.65);
-      }
+    /* LEAVES */
 
-      /* ======================================================
-         CLOUD
-      ====================================================== */
+    graphics.fillStyle(
+      0x4d963f,
+      1
+    );
 
-      createCloud(x, y, scale = 1) {
-        const cloud = this.add.graphics();
+    graphics.fillEllipse(
+      -size * 0.38,
+      -size * 0.25,
+      size * 0.75,
+      size * 0.40
+    );
 
-        cloud.fillStyle(
-          COLORS.white,
-          0.86
-        );
+    graphics.fillEllipse(
+      size * 0.35,
+      -size * 0.15,
+      size * 0.75,
+      size * 0.40
+    );
 
-        cloud.fillCircle(
-          x,
-          y,
-          30 * scale
-        );
+    graphics.fillEllipse(
+      0,
+      -size * 0.55,
+      size * 0.75,
+      size * 0.42
+    );
 
-        cloud.fillCircle(
-          x + 35 * scale,
-          y - 12 * scale,
-          40 * scale
-        );
 
-        cloud.fillCircle(
-          x + 72 * scale,
-          y,
-          29 * scale
-        );
+    /* CHILI */
 
-        cloud.fillRoundedRect(
-          x - 15 * scale,
-          y,
-          105 * scale,
-          27 * scale,
-          14
-        );
+    graphics.fillStyle(
+      GAME_CONFIG.theme.orange,
+      1
+    );
 
-        cloud.setDepth(-10);
-      }
+    graphics.fillEllipse(
+      -size * 0.22,
+      size * 0.25,
+      size * 0.18,
+      size * 0.55
+    );
 
-      /* ======================================================
-         MOUNTAINS
-      ====================================================== */
+    graphics.fillEllipse(
+      size * 0.25,
+      size * 0.20,
+      size * 0.18,
+      size * 0.55
+    );
 
-      createMountains() {
-        const mountains =
-          this.add.graphics();
 
-        mountains.fillStyle(
-          0x9dbb9c,
-          1
-        );
+    container.add(
+      graphics
+    );
 
-        mountains.beginPath();
+    this.addObject(container);
+  }
 
-        mountains.moveTo(0, 355);
-        mountains.lineTo(135, 245);
-        mountains.lineTo(265, 355);
 
-        mountains.lineTo(410, 220);
-        mountains.lineTo(570, 355);
+  /* =======================================================
+     FARMER
+  ======================================================= */
 
-        mountains.lineTo(735, 245);
-        mountains.lineTo(900, 355);
+  drawFarmer(
+    x,
+    y,
+    size
+  ) {
+    const container =
+      this.add.container(x, y);
 
-        mountains.lineTo(1060, 230);
-        mountains.lineTo(1280, 350);
+    const graphics =
+      this.add.graphics();
 
-        mountains.lineTo(1280, 370);
-        mountains.lineTo(0, 370);
 
-        mountains.closePath();
-        mountains.fillPath();
+    /* BODY */
 
-        mountains.setDepth(-8);
-      }
+    graphics.fillStyle(
+      0xc58e4c,
+      1
+    );
 
-      /* ======================================================
-         WEATHER
-      ====================================================== */
+    graphics.fillRoundedRect(
+      -size * 0.30,
+      size * 0.05,
+      size * 0.60,
+      size * 0.70,
+      8
+    );
 
-      createWeather() {
-        for (let i = 0; i < 48; i++) {
-          const drop = this.add.rectangle(
-            Phaser.Math.Between(
-              20,
-              GAME_WIDTH - 20
-            ),
-            Phaser.Math.Between(
-              30,
-              335
-            ),
-            2,
-            Phaser.Math.Between(
-              9,
-              17
-            ),
-            COLORS.waterLight,
-            0.42
+
+    /* SHIRT */
+
+    graphics.fillStyle(
+      0x486e39,
+      1
+    );
+
+    graphics.fillRoundedRect(
+      -size * 0.28,
+      size * 0.15,
+      size * 0.56,
+      size * 0.50,
+      7
+    );
+
+
+    /* HEAD */
+
+    graphics.fillStyle(
+      0xb97d4b,
+      1
+    );
+
+    graphics.fillCircle(
+      0,
+      -size * 0.18,
+      size * 0.25
+    );
+
+
+    /* HAT */
+
+    graphics.fillStyle(
+      0x526f36,
+      1
+    );
+
+    graphics.fillEllipse(
+      0,
+      -size * 0.43,
+      size * 0.70,
+      size * 0.25
+    );
+
+    graphics.fillStyle(
+      0x334d29,
+      1
+    );
+
+    graphics.fillRect(
+      -size * 0.25,
+      -size * 0.50,
+      size * 0.50,
+      size * 0.16
+    );
+
+
+    /* LEGS */
+
+    graphics.fillStyle(
+      0x60422e,
+      1
+    );
+
+    graphics.fillRoundedRect(
+      -size * 0.25,
+      size * 0.68,
+      size * 0.18,
+      size * 0.45,
+      5
+    );
+
+    graphics.fillRoundedRect(
+      size * 0.07,
+      size * 0.68,
+      size * 0.18,
+      size * 0.45,
+      5
+    );
+
+
+    container.add(
+      graphics
+    );
+
+    this.addObject(container);
+  }
+
+
+  /* =======================================================
+     HOTSPOTS
+  ======================================================= */
+
+  drawHotspots() {
+    const positions =
+      this.isPortrait
+        ? [
+            {
+              id: "soil",
+              x: this.w * 0.29,
+              y: this.h * 0.58,
+            },
+            {
+              id: "leaf",
+              x: this.w * 0.71,
+              y: this.h * 0.57,
+            },
+          ]
+        : [
+            {
+              id: "soil",
+              x: this.w * 0.24,
+              y: this.h * 0.59,
+            },
+            {
+              id: "leaf",
+              x: this.w * 0.76,
+              y: this.h * 0.56,
+            },
+          ];
+
+
+    positions.forEach(
+      (position) => {
+        const found =
+          this.evidenceFound.has(
+            position.id
           );
 
-          drop.setDepth(-1);
-
-          this.rainDrops.push(drop);
-        }
-      }
-
-      /* ======================================================
-         FIELD
-      ====================================================== */
-
-      createField() {
-        /*
-         * Left bed.
-         */
-        this.createBed(
-          315,
-          470,
-          420,
-          130
-        );
-
-        /*
-         * Right bed.
-         */
-        this.createBed(
-          910,
-          470,
-          420,
-          130
-        );
-
-        /*
-         * Walking path.
-         */
-        this.add
-          .rectangle(
-            640,
-            500,
-            90,
-            260,
-            0xc7a77d
-          )
-          .setDepth(0);
-
-        /*
-         * Path stones.
-         */
-        for (let i = 0; i < 5; i++) {
-          this.add
-            .ellipse(
-              640,
-              410 + i * 48,
-              45,
-              20,
-              0xe1c59a,
-              0.8
-            )
-            .setDepth(1);
-        }
-
-        /*
-         * Soil texture.
-         */
-        for (let i = 0; i < 80; i++) {
-          const side =
-            i % 2 === 0;
-
-          const x = side
-            ? Phaser.Math.Between(125, 505)
-            : Phaser.Math.Between(770, 1150);
-
-          const y =
-            Phaser.Math.Between(
-              420,
-              530
-            );
-
-          this.add
-            .circle(
-              x,
-              y,
-              Phaser.Math.Between(
-                1,
-                3
-              ),
-              COLORS.soilDark,
-              0.3
-            )
-            .setDepth(2);
-        }
-      }
-
-      /* ======================================================
-         BED
-      ====================================================== */
-
-      createBed(
-        x,
-        y,
-        width,
-        height
-      ) {
-        const graphics =
-          this.add.graphics();
-
-        graphics.fillStyle(
-          COLORS.soil,
-          1
-        );
-
-        graphics.fillRoundedRect(
-          x - width / 2,
-          y - height / 2,
-          width,
-          height,
-          24
-        );
-
-        graphics.lineStyle(
-          5,
-          COLORS.soilDark,
-          0.38
-        );
-
-        graphics.strokeRoundedRect(
-          x - width / 2,
-          y - height / 2,
-          width,
-          height,
-          24
-        );
-
-        graphics.setDepth(0);
-      }
-
-      /* ======================================================
-         PLANTS
-      ====================================================== */
-
-      createPlants() {
-        const positions = [
-          [150, 445],
-          [225, 480],
-          [305, 430],
-          [380, 480],
-          [455, 440],
-
-          [780, 445],
-          [850, 480],
-          [930, 430],
-          [1010, 480],
-          [1090, 440],
-        ];
-
-        positions.forEach(
-          ([x, y], index) => {
-            const plant =
-              this.createPepperPlant(
-                x,
-                y,
-                index
+        const radius =
+          this.isPortrait
+            ? clamp(
+                this.w * 0.07,
+                22,
+                34
+              )
+            : clamp(
+                this.w * 0.035,
+                22,
+                34
               );
 
-            this.plants.push(
-              plant
-            );
-          }
-        );
-      }
 
-      /* ======================================================
-         PEPPER PLANT
-      ====================================================== */
-
-      createPepperPlant(
-        x,
-        y,
-        index
-      ) {
-        const plant =
-          this.add.container(
-            x,
-            y
+        const ring =
+          this.add.circle(
+            position.x,
+            position.y,
+            radius,
+            0xffffff,
+            0.96
           );
 
-        /*
-         * Stem.
-         */
-        const stem =
-          this.add.graphics();
-
-        stem.lineStyle(
-          8,
-          COLORS.leafDark,
+        ring.setStrokeStyle(
+          3,
+          found
+            ? 0x83bd59
+            : 0xf1c84b,
           1
         );
 
-        stem.beginPath();
-        stem.moveTo(0, 20);
-        stem.lineTo(0, -62);
-        stem.strokePath();
-
-        /*
-         * Leaves.
-         */
-        const leaves =
-          this.add.graphics();
-
-        leaves.fillStyle(
-          COLORS.leaf,
-          1
-        );
-
-        leaves.fillEllipse(
-          -20,
-          -38,
-          42,
-          21
-        );
-
-        leaves.fillEllipse(
-          21,
-          -47,
-          42,
-          21
-        );
-
-        leaves.fillEllipse(
-          -20,
-          -12,
-          39,
-          19
-        );
-
-        leaves.fillEllipse(
-          20,
-          -18,
-          39,
-          19
-        );
-
-        /*
-         * Yellow leaves.
-         */
-        if (
-          index === 1 ||
-          index === 4 ||
-          index === 8
-        ) {
-          leaves.fillStyle(
-            COLORS.yellow,
-            1
-          );
-
-          leaves.fillEllipse(
-            -20,
-            -12,
-            39,
-            19
-          );
-        }
-
-        /*
-         * Chili.
-         */
-        const chili =
-          this.add.graphics();
-
-        chili.fillStyle(
-          COLORS.chili,
-          1
-        );
-
-        chili.fillRoundedRect(
-          -7,
-          -82,
-          12,
-          33,
-          8
-        );
-
-        chili.rotation = -0.2;
-
-        /*
-         * Stem top.
-         */
-        const top =
-          this.add.graphics();
-
-        top.fillStyle(
-          COLORS.leafDark,
-          1
-        );
-
-        top.fillCircle(
-          0,
-          -72,
-          7
-        );
-
-        plant.add([
-          stem,
-          leaves,
-          chili,
-          top,
-        ]);
-
-        plant.setDepth(5);
-
-        plant.setScale(
-          0.85 +
-            (index % 3) *
-              0.07
-        );
-
-        plant.setData(
-          "index",
-          index
-        );
-
-        /*
-         * Subtle animation.
-         */
-        this.tweens.add({
-          targets: plant,
-          angle:
-            index % 2 === 0
-              ? 1.5
-              : -1.5,
-          duration:
-            1800 +
-            index * 100,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.InOut",
+        ring.setInteractive({
+          useHandCursor: true,
         });
 
-        return plant;
-      }
+        ring.__hotspotId =
+          position.id;
 
-      /* ======================================================
-         DRAINAGE
-      ====================================================== */
+        this.addObject(ring);
 
-      createDrainage() {
-        const channel =
-          this.add.graphics();
 
-        channel.fillStyle(
-          COLORS.soilDark,
-          0.8
-        );
-
-        channel.fillRoundedRect(
-          80,
-          530,
-          170,
-          25,
-          12
-        );
-
-        channel.fillRoundedRect(
-          1060,
-          530,
-          150,
-          25,
-          12
-        );
-
-        channel.setDepth(3);
-
-        /*
-         * Puddles.
-         */
-        this.createPuddle(
-          145,
-          505,
-          105,
-          34
-        );
-
-        this.createPuddle(
-          1125,
-          505,
-          100,
-          32
-        );
-      }
-
-      createPuddle(
-        x,
-        y,
-        width,
-        height
-      ) {
-        const puddle =
-          this.add.ellipse(
-            x,
-            y,
-            width,
-            height,
-            COLORS.water,
-            0.78
-          );
-
-        puddle.setDepth(4);
-
-        this.waterPools.push(
-          puddle
-        );
-      }
-
-      /* ======================================================
-         PLAYER
-      ====================================================== */
-
-      createPlayer() {
-        this.player =
-          this.add.container(
-            640,
-            380
-          );
-
-        /*
-         * Body.
-         */
-        const body =
-          this.add.graphics();
-
-        body.fillStyle(
-          0x8d5a45,
-          1
-        );
-
-        body.fillRoundedRect(
-          -25,
-          -2,
-          50,
-          72,
-          16
-        );
-
-        /*
-         * Shirt.
-         */
-        const shirt =
-          this.add.graphics();
-
-        shirt.fillStyle(
-          0xd0a84c,
-          1
-        );
-
-        shirt.fillRoundedRect(
-          -24,
-          5,
-          48,
-          52,
-          14
-        );
-
-        /*
-         * Head.
-         */
-        const head =
-          this.add.graphics();
-
-        head.fillStyle(
-          0xb97850,
-          1
-        );
-
-        head.fillCircle(
-          0,
-          -35,
-          24
-        );
-
-        /*
-         * Face.
-         */
-        const face =
-          this.add.graphics();
-
-        face.fillStyle(
-          0x2c211b,
-          1
-        );
-
-        face.fillEllipse(
-          -8,
-          -39,
-          6,
-          8
-        );
-
-        face.fillEllipse(
-          8,
-          -39,
-          6,
-          8
-        );
-
-        /*
-         * Hat.
-         */
-        const hat =
-          this.add.graphics();
-
-        hat.fillStyle(
-          0x4c6b3c,
-          1
-        );
-
-        hat.fillEllipse(
-          0,
-          -62,
-          75,
-          22
-        );
-
-        hat.fillRoundedRect(
-          -25,
-          -84,
-          50,
-          28,
-          10
-        );
-
-        /*
-         * Arm.
-         */
-        const arm =
-          this.add.graphics();
-
-        arm.lineStyle(
-          12,
-          0x8d5a45,
-          1
-        );
-
-        arm.beginPath();
-
-        arm.moveTo(
-          -20,
-          20
-        );
-
-        arm.lineTo(
-          -42,
-          42
-        );
-
-        arm.strokePath();
-
-        this.player.add([
-          body,
-          shirt,
-          head,
-          face,
-          hat,
-          arm,
-        ]);
-
-        this.player.setDepth(15);
-
-        this.tweens.add({
-          targets: this.player,
-          y: 376,
-          duration: 1200,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.InOut",
-        });
-      }
-
-      /* ======================================================
-         INTERACTION ZONES
-      ====================================================== */
-
-      createInteractionZones() {
-        /*
-         * Tanah.
-         */
-        this.createEntityZone(
-          "soil",
-          325,
-          475,
-          250,
-          120
-        );
-
-        /*
-         * Daun.
-         */
-        this.createEntityZone(
-          "leaf",
-          225,
-          425,
-          210,
-          170
-        );
-
-        /*
-         * Drainage.
-         */
-        this.createEntityZone(
-          "drainage",
-          1110,
-          510,
-          250,
-          100
-        );
-      }
-
-      createEntityZone(
-        id,
-        x,
-        y,
-        width,
-        height
-      ) {
-        const zone =
-          this.add
-            .zone(
-              x,
-              y,
-              width,
-              height
-            )
-            .setInteractive({
-              useHandCursor: true,
-            });
-
-        zone.setData(
-          "entityId",
-          id
-        );
-
-        /*
-         * Mobile touch.
-         */
-        zone.on(
-          "pointerdown",
-          () => {
-            this.inspectEntity(
-              id,
-              zone
-            );
-          }
-        );
-
-        /*
-         * Desktop hover.
-         */
-        zone.on(
-          "pointerover",
-          () => {
-            if (
-              !this.isDecisionPhase &&
-              !this.isResultPhase
-            ) {
-              this.showHighlight(
-                zone
-              );
-            }
-          }
-        );
-
-        zone.on(
-          "pointerout",
-          () => {
-            this.hideHighlight(
-              zone
-            );
-          }
-        );
-
-        this.entityObjects[id] =
-          zone;
-      }
-
-      /* ======================================================
-         INSPECT ENTITY
-      ====================================================== */
-
-      inspectEntity(
-        id,
-        zone
-      ) {
-        if (
-          this.isDecisionPhase ||
-          this.isResultPhase
-        ) {
-          return;
-        }
-
-        if (
-          !this.observedIds.includes(
-            id
-          )
-        ) {
-          this.observedIds.push(
-            id
-          );
-        }
-
-        const evidence =
-          EVIDENCE[id];
-
-        if (!evidence) {
-          return;
-        }
-
-        /*
-         * React callback.
-         */
-        callbacksRef.current.onEntityObserved?.(
-          evidence
-        );
-
-        /*
-         * Move player.
-         */
-        this.movePlayerTo(
-          zone.x,
-          zone.y - 70
-        );
-
-        /*
-         * Popup.
-         */
-        this.showEntityPopup(
-          id
-        );
-
-        /*
-         * Update counter.
-         */
-        this.updateEvidenceCounter();
-
-        /*
-         * Kalau sudah 2 bukti.
-         */
-        if (
-          this.observedIds.length >=
-          2
-        ) {
-          this.time.delayedCall(
-            900,
-            () => {
-              this.enterDecisionPhase();
-            }
-          );
-        }
-      }
-
-      /* ======================================================
-         HIGHLIGHT
-      ====================================================== */
-
-      showHighlight(zone) {
-        if (
-          zone.getData(
-            "highlight"
-          )
-        ) {
-          return;
-        }
-
-        const highlight =
-          this.add
-            .ellipse(
-              zone.x,
-              zone.y,
-              zone.width * 0.75,
-              zone.height * 0.45,
-              COLORS.yellow,
-              0.12
-            )
-            .setStrokeStyle(
-              4,
-              COLORS.yellowLight,
-              0.9
-            )
-            .setDepth(10);
-
-        zone.setData(
-          "highlight",
-          highlight
-        );
-
-        this.tweens.add({
-          targets: highlight,
-          scale: 1.06,
-          alpha: 0.25,
-          duration: 650,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.InOut",
-        });
-      }
-
-      hideHighlight(zone) {
-        const highlight =
-          zone.getData(
-            "highlight"
-          );
-
-        if (!highlight) {
-          return;
-        }
-
-        highlight.destroy();
-
-        zone.setData(
-          "highlight",
-          null
-        );
-      }
-
-      /* ======================================================
-         ENTITY POPUP
-      ====================================================== */
-
-      showEntityPopup(id) {
-        const entity =
-          EVIDENCE[id];
-
-        if (!entity) {
-          return;
-        }
-
-        if (this.entityPopup) {
-          this.entityPopup.destroy();
-        }
-
-        /*
-         * Popup ditempatkan di area yang
-         * tidak menutupi terlalu banyak kebun.
-         */
-        let x = 640;
-        let y = 180;
-
-        if (id === "soil") {
-          x = 350;
-          y = 235;
-        }
-
-        if (id === "leaf") {
-          x = 225;
-          y = 235;
-        }
-
-        if (id === "drainage") {
-          x = 1030;
-          y = 250;
-        }
-
-        const popup =
-          this.add.container(
-            x,
-            y
-          );
-
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              310,
-              142,
-              COLORS.cream,
-              0.98
-            )
-            .setStrokeStyle(
-              3,
-              COLORS.yellow,
-              1
-            );
-
-        const badge =
-          this.add
-            .rectangle(
-              -115,
-              -47,
-              80,
-              23,
-              COLORS.navy,
-              1
-            );
-
-        const badgeText =
-          this.add.text(
-            -148,
-            -57,
-            entity.subtitle,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "10px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-              letterSpacing:
-                1,
-            }
-          );
-
-        const title =
-          this.add.text(
-            -135,
-            -25,
-            entity.title,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "19px",
-              fontStyle:
-                "bold",
-              color:
-                "#203027",
-            }
-          );
-
-        const metric =
-          this.add.text(
-            -135,
-            5,
-            entity.metric,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "14px",
-              fontStyle:
-                "bold",
-              color:
-                "#C84D45",
-            }
-          );
-
-        const detail =
-          this.add.text(
-            -135,
-            31,
-            entity.detail,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "11px",
-              color:
-                "#657168",
-              wordWrap: {
-                width: 270,
-              },
-              lineSpacing:
-                3,
-            }
-          );
-
-        popup.add([
-          bg,
-          badge,
-          badgeText,
-          title,
-          metric,
-          detail,
-        ]);
-
-        popup.setDepth(100);
-
-        popup.setScale(0.85);
-        popup.alpha = 0;
-
-        this.tweens.add({
-          targets: popup,
-          scale: 1,
-          alpha: 1,
-          duration: 220,
-          ease: "Back.Out",
-        });
-
-        this.entityPopup =
-          popup;
-
-        /*
-         * Auto close.
-         */
-        this.time.delayedCall(
-          4500,
-          () => {
-            if (
-              this.entityPopup ===
-              popup
-            ) {
-              this.tweens.add({
-                targets: popup,
-                alpha: 0,
-                duration: 150,
-                onComplete: () => {
-                  popup.destroy();
-
-                  if (
-                    this.entityPopup ===
-                    popup
-                  ) {
-                    this.entityPopup =
-                      null;
-                  }
-                },
-              });
-            }
-          }
-        );
-      }
-
-      /* ======================================================
-         PLAYER MOVEMENT
-      ====================================================== */
-
-      movePlayerTo(
-        x,
-        y
-      ) {
-        if (!this.player) {
-          return;
-        }
-
-        this.tweens.add({
-          targets:
-            this.player,
-          x: clamp(
-            x,
-            80,
-            GAME_WIDTH - 80
-          ),
-          y: clamp(
-            y,
-            300,
-            500
-          ),
-          duration: 450,
-          ease: "Sine.Out",
-        });
-      }
-
-      /* ======================================================
-         DECISION PHASE
-      ====================================================== */
-
-      enterDecisionPhase() {
-        if (
-          this.isDecisionPhase
-        ) {
-          return;
-        }
-
-        this.isDecisionPhase =
-          true;
-
-        callbacksRef.current.onObservationComplete?.(
-          {
-            observedIds:
-              this.observedIds,
-            complete: true,
-          }
-        );
-
-        /*
-         * Tutup popup.
-         */
-        if (this.entityPopup) {
-          this.entityPopup.destroy();
-          this.entityPopup =
-            null;
-        }
-
-        /*
-         * Instruksi hilang.
-         */
-        if (
-          this.instructionBox
-        ) {
-          this.instructionBox.destroy();
-          this.instructionBox =
-            null;
-        }
-
-        this.showDecisionToast();
-
-        this.time.delayedCall(
-          700,
-          () => {
-            this.createDecisionPanel();
-          }
-        );
-      }
-
-      /* ======================================================
-         DECISION TOAST
-      ====================================================== */
-
-      showDecisionToast() {
-        const toast =
-          this.add.container(
-            GAME_WIDTH / 2,
-            112
-          );
-
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              430,
-              62,
-              COLORS.green,
-              0.98
-            )
-            .setStrokeStyle(
-              3,
-              COLORS.white,
-              0.85
-            );
-
-        const title =
-          this.add.text(
-            -180,
-            -18,
-            "✓  BUKTI CUKUP!",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "16px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          );
+        const icon =
+          position.id === "soil"
+            ? "💧"
+            : "🌱";
 
         const text =
           this.add.text(
-            -180,
-            5,
-            "Sekarang tentukan tindakanmu.",
+            position.x,
+            position.y,
+            found
+              ? "✓"
+              : icon,
             {
               fontFamily:
-                "Arial",
+                "Arial, sans-serif",
               fontSize:
-                "12px",
-              color:
-                "#EAF6ED",
-            }
-          );
-
-        toast.add([
-          bg,
-          title,
-          text,
-        ]);
-
-        toast.setDepth(120);
-
-        toast.setScale(0.8);
-        toast.alpha = 0;
-
-        this.tweens.add({
-          targets: toast,
-          scale: 1,
-          alpha: 1,
-          duration: 220,
-          ease: "Back.Out",
-        });
-
-        this.time.delayedCall(
-          1600,
-          () => {
-            this.tweens.add({
-              targets: toast,
-              alpha: 0,
-              y: 95,
-              duration: 180,
-              onComplete: () =>
-                toast.destroy(),
-            });
-          }
-        );
-      }
-
-      /* ======================================================
-         DECISION PANEL
-      ====================================================== */
-
-      createDecisionPanel() {
-        if (this.decisionPanel) {
-          this.decisionPanel.destroy();
-        }
-
-        const panel =
-          this.add.container(
-            GAME_WIDTH / 2,
-            510
-          );
-
-        /*
-         * Panel backdrop.
-         */
-        const backdrop =
-          this.add
-            .rectangle(
-              0,
-              0,
-              1160,
-              350,
-              COLORS.cream,
-              0.98
-            )
-            .setStrokeStyle(
-              3,
-              0xdcc9a6,
-              1
-            );
-
-        /*
-         * Header.
-         */
-        const eyebrow =
-          this.add.text(
-            -530,
-            -150,
-            "PILIH KEPUTUSAN",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "11px",
-              fontStyle:
-                "bold",
-              color:
-                "#A87919",
-              letterSpacing:
-                2,
-            }
-          );
-
-        const title =
-          this.add.text(
-            -530,
-            -127,
-            "Apa langkah pertamamu?",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "25px",
-              fontStyle:
-                "bold",
-              color:
-                "#203027",
-            }
-          );
-
-        const subtitle =
-          this.add.text(
-            -530,
-            -95,
-            "Pilih berdasarkan bukti yang kamu temukan.",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "13px",
-              color:
-                "#657168",
-            }
-          );
-
-        panel.add([
-          backdrop,
-          eyebrow,
-          title,
-          subtitle,
-        ]);
-
-        /*
-         * Cards.
-         */
-        DECISIONS.forEach(
-          (choice, index) => {
-            const card =
-              this.createDecisionCard(
-                choice,
-                index
-              );
-
-            panel.add(card);
-          }
-        );
-
-        panel.setDepth(150);
-
-        panel.setScale(0.92);
-        panel.alpha = 0;
-
-        this.tweens.add({
-          targets: panel,
-          scale: 1,
-          alpha: 1,
-          duration: 260,
-          ease: "Back.Out",
-        });
-
-        this.decisionPanel =
-          panel;
-      }
-
-      /* ======================================================
-         DECISION CARD
-      ====================================================== */
-
-      createDecisionCard(
-        choice,
-        index
-      ) {
-        const positions = [
-          -370,
-          0,
-          370,
-        ];
-
-        const card =
-          this.add.container(
-            positions[index],
-            65
-          );
-
-        let border =
-          0xd8d0c3;
-
-        if (
-          choice.type ===
-          "good"
-        ) {
-          border =
-            0x82b78e;
-        }
-
-        if (
-          choice.type ===
-          "warning"
-        ) {
-          border =
-            0xe1b65c;
-        }
-
-        if (
-          choice.type ===
-          "bad"
-        ) {
-          border =
-            0xd4877f;
-        }
-
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              330,
-              190,
-              COLORS.white,
-              1
-            )
-            .setStrokeStyle(
-              3,
-              border,
-              1
-            );
-
-        /*
-         * Number.
-         */
-        const number =
-          this.add
-            .circle(
-              -135,
-              -65,
-              20,
-              COLORS.creamDark
-            );
-
-        const numberText =
-          this.add.text(
-            -141,
-            -75,
-            String(
-              index + 1
-            ),
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "15px",
-              fontStyle:
-                "bold",
-              color:
-                "#A87919",
-            }
-          );
-
-        /*
-         * Title.
-         */
-        const title =
-          this.add.text(
-            -105,
-            -80,
-            choice.title,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "15px",
-              fontStyle:
-                "bold",
-              color:
-                "#203027",
-              wordWrap: {
-                width: 205,
-              },
-              lineSpacing: 2,
-            }
-          );
-
-        /*
-         * Description.
-         */
-        const description =
-          this.add.text(
-            -135,
-            -25,
-            choice.short,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "11px",
-              color:
-                "#657168",
-              wordWrap: {
-                width: 270,
-              },
-              lineSpacing: 3,
-            }
-          );
-
-        /*
-         * CTA.
-         */
-        const button =
-          this.add
-            .rectangle(
-              0,
-              65,
-              270,
-              42,
-              COLORS.navy,
-              1
-            )
-            .setInteractive({
-              useHandCursor:
-                true,
-            });
-
-        const buttonText =
-          this.add
-            .text(
-              -72,
-              54,
-              "PILIH INI  →",
-              {
-                fontFamily:
-                  "Arial",
-                fontSize:
-                  "12px",
-                fontStyle:
-                  "bold",
-                color:
-                  "#FFFFFF",
-              }
-            );
-
-        card.add([
-          bg,
-          number,
-          numberText,
-          title,
-          description,
-          button,
-          buttonText,
-        ]);
-
-        /*
-         * Hover.
-         */
-        button.on(
-          "pointerover",
-          () => {
-            bg.setFillStyle(
-              0xfffbf2
-            );
-
-            button.setFillStyle(
-              COLORS.green
-            );
-
-            card.setScale(
-              1.025
-            );
-          }
-        );
-
-        button.on(
-          "pointerout",
-          () => {
-            bg.setFillStyle(
-              COLORS.white
-            );
-
-            button.setFillStyle(
-              COLORS.navy
-            );
-
-            card.setScale(
-              1
-            );
-          }
-        );
-
-        /*
-         * Touch/click.
-         */
-        button.on(
-          "pointerdown",
-          () => {
-            this.selectChoice(
-              choice
-            );
-          }
-        );
-
-        return card;
-      }
-
-      /* ======================================================
-         SELECT CHOICE
-      ====================================================== */
-
-      selectChoice(
-        choice
-      ) {
-        if (
-          this.isResultPhase
-        ) {
-          return;
-        }
-
-        this.isResultPhase =
-          true;
-
-        if (
-          this.decisionPanel
-        ) {
-          this.decisionPanel.destroy();
-
-          this.decisionPanel =
-            null;
-        }
-
-        this.runConsequence(
-          choice
-        );
-      }
-
-      /* ======================================================
-         CONSEQUENCE
-      ====================================================== */
-
-      runConsequence(
-        choice
-      ) {
-        /*
-         * Disable interaction
-         * sementara animasi berjalan.
-         */
-        this.input.enabled =
-          false;
-
-        if (
-          choice.id ===
-          "drain"
-        ) {
-          this.animateDrainageSuccess();
-        }
-
-        if (
-          choice.id ===
-          "fertilize"
-        ) {
-          this.animateFertilize();
-        }
-
-        if (
-          choice.id ===
-          "water"
-        ) {
-          this.animateMoreWater();
-        }
-
-        this.time.delayedCall(
-          1700,
-          () => {
-            this.showResult(
-              choice
-            );
-          }
-        );
-      }
-
-      /* ======================================================
-         GOOD CONSEQUENCE
-      ====================================================== */
-
-      animateDrainageSuccess() {
-        /*
-         * Puddles menyusut.
-         */
-        this.waterPools.forEach(
-          (pool) => {
-            this.tweens.add({
-              targets: pool,
-              scaleX: 0.15,
-              scaleY: 0.4,
-              alpha: 0.15,
-              duration: 1000,
-              ease: "Sine.In",
-            });
-          }
-        );
-
-        /*
-         * Water flow.
-         */
-        const flow =
-          this.add.graphics();
-
-        flow.lineStyle(
-          8,
-          COLORS.water,
-          0.9
-        );
-
-        flow.beginPath();
-
-        flow.moveTo(
-          110,
-          505
-        );
-
-        flow.lineTo(
-          220,
-          520
-        );
-
-        flow.lineTo(
-          340,
-          535
-        );
-
-        flow.strokePath();
-
-        flow.setDepth(25);
-
-        this.tweens.add({
-          targets: flow,
-          alpha: 0,
-          x: 50,
-          duration: 1300,
-          onComplete: () =>
-            flow.destroy(),
-        });
-
-        /*
-         * Green particles.
-         */
-        this.createParticles(
-          640,
-          430,
-          COLORS.green
-        );
-
-        /*
-         * Success label.
-         */
-        this.showFloatingMessage(
-          "✓ AIR MULAI TERKENDALI",
-          COLORS.green
-        );
-      }
-
-      /* ======================================================
-         FERTILIZE
-      ====================================================== */
-
-      animateFertilize() {
-        /*
-         * Fertilizer particles.
-         */
-        for (
-          let i = 0;
-          i < 18;
-          i++
-        ) {
-          const particle =
-            this.add.circle(
-              Phaser.Math.Between(
-                150,
-                470
-              ),
-              410,
-              Phaser.Math.Between(
-                3,
-                6
-              ),
-              COLORS.yellow,
-              1
-            );
-
-          particle.setDepth(25);
-
-          this.tweens.add({
-            targets:
-              particle,
-
-            y:
-              particle.y +
-              Phaser.Math.Between(
-                40,
-                90
-              ),
-
-            alpha: 0,
-
-            duration: 700,
-
-            onComplete: () =>
-              particle.destroy(),
-          });
-        }
-
-        /*
-         * Water tetap ada.
-         */
-        this.waterPools.forEach(
-          (pool) => {
-            this.tweens.add({
-              targets: pool,
-              scale: 1.1,
-              alpha: 0.9,
-              duration: 500,
-              yoyo: true,
-            });
-          }
-        );
-
-        this.showFloatingMessage(
-          "⚠ TANAH MASIH TERLALU BASAH",
-          COLORS.warning
-        );
-      }
-
-      /* ======================================================
-         MORE WATER
-      ====================================================== */
-
-      animateMoreWater() {
-        for (
-          let i = 0;
-          i < 25;
-          i++
-        ) {
-          const splash =
-            this.add.circle(
-              Phaser.Math.Between(
-                110,
-                1170
-              ),
-              Phaser.Math.Between(
-                420,
-                525
-              ),
-              Phaser.Math.Between(
-                3,
-                7
-              ),
-              COLORS.water,
-              0.85
-            );
-
-          splash.setDepth(25);
-
-          this.tweens.add({
-            targets:
-              splash,
-
-            y:
-              splash.y -
-              Phaser.Math.Between(
-                20,
-                50
-              ),
-
-            alpha: 0,
-
-            duration: 650,
-
-            onComplete: () =>
-              splash.destroy(),
-          });
-        }
-
-        this.waterPools.forEach(
-          (pool) => {
-            this.tweens.add({
-              targets: pool,
-              scaleX: 1.4,
-              scaleY: 1.2,
-              alpha: 1,
-              duration: 650,
-            });
-          }
-        );
-
-        this.showFloatingMessage(
-          "💧 AIR SEMAKIN BERLEBIH",
-          COLORS.red
-        );
-      }
-
-      /* ======================================================
-         FLOATING MESSAGE
-      ====================================================== */
-
-      showFloatingMessage(
-        message,
-        color
-      ) {
-        const text =
-          this.add.text(
-            GAME_WIDTH / 2,
-            350,
-            message,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "20px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-              backgroundColor:
-                Phaser.Display.Color.IntegerToColor(
-                  color
-                ).rgba,
-              padding: {
-                left: 18,
-                right: 18,
-                top: 12,
-                bottom: 12,
-              },
+                this.isPortrait
+                  ? "18px"
+                  : "20px",
+              color: found
+                ? "#315d3e"
+                : "#76551c",
             }
           );
 
@@ -2380,1014 +1084,641 @@ export default function CabaiGame({
           0.5
         );
 
-        text.setDepth(200);
+        this.addObject(text);
 
-        text.alpha = 0;
 
-        this.tweens.add({
-          targets: text,
-          alpha: 1,
-          y: 325,
-          duration: 220,
-          ease: "Back.Out",
-        });
-
-        this.tweens.add({
-          targets: text,
-          alpha: 0,
-          y: 285,
-          delay: 900,
-          duration: 450,
-          onComplete: () =>
-            text.destroy(),
-        });
-      }
-
-      /* ======================================================
-         RESULT
-      ====================================================== */
-
-      showResult(
-        choice
-      ) {
-        callbacksRef.current.onResult?.(
-          {
-            choice,
-            observedIds:
-              this.observedIds,
-          }
-        );
-
-        callbacksRef.current.onComplete?.(
-          {
-            choice,
-            observedIds:
-              this.observedIds,
-            score:
-              choice.score,
-            xp:
-              choice.xp,
-            coins:
-              choice.coins,
-          }
-        );
-
-        this.createResultPanel(
-          choice
-        );
-      }
-
-      /* ======================================================
-         RESULT PANEL
-      ====================================================== */
-
-      createResultPanel(
-        choice
-      ) {
-        const panel =
-          this.add.container(
-            GAME_WIDTH / 2,
-            GAME_HEIGHT / 2
-          );
-
-        /*
-         * Dim background.
-         */
-        const dim =
-          this.add.rectangle(
-            0,
-            0,
-            GAME_WIDTH,
-            GAME_HEIGHT,
-            0x142018,
-            0.58
-          );
-
-        /*
-         * Main card.
-         */
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              620,
-              470,
-              COLORS.cream,
-              1
-            )
-            .setStrokeStyle(
-              4,
-              choice.type ===
-                "good"
-                ? COLORS.green
-                : choice.type ===
-                  "warning"
-                ? COLORS.warning
-                : COLORS.red,
-              1
-            );
-
-        /*
-         * Result icon.
-         */
-        const iconBg =
-          this.add.circle(
-            0,
-            -160,
-            45,
-            choice.type ===
-              "good"
-              ? COLORS.green
-              : choice.type ===
-                "warning"
-              ? COLORS.warning
-              : COLORS.red
-          );
-
-        const icon =
-          this.add.text(
-            -15,
-            -180,
-            choice.type ===
-              "good"
-              ? "✓"
-              : choice.type ===
-                "warning"
-              ? "!"
-              : "×",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "34px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          );
-
-        /*
-         * Heading.
-         */
-        const heading =
-          this.add.text(
-            0,
-            -105,
-            choice.type ===
-              "good"
-              ? "Keputusan bagus!"
-              : choice.type ===
-                "warning"
-              ? "Ada yang perlu dipikirkan"
-              : "Belum tepat",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "27px",
-              fontStyle:
-                "bold",
-              color:
-                "#203027",
-            }
-          );
-
-        heading.setOrigin(
-          0.5
-        );
-
-        /*
-         * Feedback.
-         */
-        const feedback =
-          this.add.text(
-            0,
-            -55,
-            choice.feedback,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "14px",
-              color:
-                "#657168",
-              align:
-                "center",
-              wordWrap: {
-                width: 500,
-              },
-              lineSpacing:
-                5,
-            }
-          );
-
-        feedback.setOrigin(
-          0.5
-        );
-
-        /*
-         * Learning.
-         */
-        const learningBg =
-          this.add
-            .rectangle(
-              0,
-              45,
-              500,
-              82,
-              COLORS.creamDark,
-              1
-            )
-            .setStrokeStyle(
-              2,
-              0xe3d6c3,
-              1
-            );
-
-        const learningTitle =
-          this.add.text(
-            -220,
-            20,
-            "🌱 YANG PERLU DIINGAT",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "11px",
-              fontStyle:
-                "bold",
-              color:
-                "#A87919",
-            }
-          );
-
-        const learning =
-          this.add.text(
-            -220,
-            43,
-            choice.learning,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "12px",
-              color:
-                "#203027",
-              wordWrap: {
-                width: 440,
-              },
-              lineSpacing:
-                3,
-            }
-          );
-
-        /*
-         * Rewards.
-         */
-        const rewardY = 135;
-
-        const xpText =
-          this.add.text(
-            -170,
-            rewardY,
-            `⚡ +${choice.xp} XP`,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "17px",
-              fontStyle:
-                "bold",
-              color:
-                "#A87919",
-            }
-          );
-
-        const coinText =
-          this.add.text(
-            40,
-            rewardY,
-            `🪙 +${choice.coins}`,
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "17px",
-              fontStyle:
-                "bold",
-              color:
-                "#A87919",
-            }
-          );
-
-        /*
-         * Practice CTA.
-         */
-        const practiceButton =
-          this.add
-            .rectangle(
-              0,
-              200,
-              390,
-              52,
-              COLORS.green,
-              1
-            )
-            .setInteractive({
-              useHandCursor:
-                true,
-            });
-
-        const practiceText =
-          this.add.text(
-            0,
-            186,
-            "🌱  LANJUT PRAKTIK DI KEBUN",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "14px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          );
-
-        practiceText.setOrigin(
-          0.5
-        );
-
-        panel.add([
-          dim,
-          bg,
-          iconBg,
-          icon,
-          heading,
-          feedback,
-          learningBg,
-          learningTitle,
-          learning,
-          xpText,
-          coinText,
-          practiceButton,
-          practiceText,
-        ]);
-
-        panel.setDepth(
-          300
-        );
-
-        panel.setScale(
-          0.82
-        );
-
-        panel.alpha = 0;
-
-        this.tweens.add({
-          targets: panel,
-          scale: 1,
-          alpha: 1,
-          duration: 300,
-          ease: "Back.Out",
-        });
-
-        /*
-         * CTA behavior.
-         *
-         * onComplete sudah dipanggil sebelumnya
-         * supaya Academy bisa menyimpan progress.
-         *
-         * Tombol ini hanya memberitahu parent
-         * bahwa user ingin masuk praktik.
-         */
-        practiceButton.on(
-          "pointerover",
-          () => {
-            practiceButton.setFillStyle(
-              COLORS.greenDark
-            );
-          }
-        );
-
-        practiceButton.on(
-          "pointerout",
-          () => {
-            practiceButton.setFillStyle(
-              COLORS.green
-            );
-          }
-        );
-
-        practiceButton.on(
-          "pointerdown",
-          () => {
-            callbacksRef.current.onExit?.();
-          }
-        );
-
-        this.resultPanel =
-          panel;
-      }
-
-      /* ======================================================
-         PARTICLES
-      ====================================================== */
-
-      createParticles(
-        x,
-        y,
-        color
-      ) {
-        for (
-          let i = 0;
-          i < 24;
-          i++
-        ) {
-          const particle =
-            this.add.circle(
-              x,
-              y,
-              Phaser.Math.Between(
-                3,
-                6
-              ),
-              color,
-              1
-            );
-
-          particle.setDepth(
-            250
-          );
-
+        if (!found) {
           this.tweens.add({
-            targets:
-              particle,
-
-            x:
-              x +
-              Phaser.Math.Between(
-                -110,
-                110
-              ),
-
-            y:
-              y +
-              Phaser.Math.Between(
-                -100,
-                60
-              ),
-
-            alpha: 0,
-
-            scale: 0,
-
-            duration:
-              Phaser.Math.Between(
-                500,
-                950
-              ),
-
-            ease:
-              "Quad.Out",
-
-            onComplete: () =>
-              particle.destroy(),
+            targets: ring,
+            scaleX: 1.12,
+            scaleY: 1.12,
+            duration: 900,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
           });
         }
       }
+    );
+  }
 
-      /* ======================================================
-         HUD
-      ====================================================== */
 
-      createHUD() {
-        /*
-         * Top bar.
-         */
-        const bar =
-          this.add
-            .rectangle(
-              GAME_WIDTH / 2,
-              42,
-              GAME_WIDTH - 36,
-              68,
-              COLORS.navy,
-              0.97
-            )
-            .setStrokeStyle(
-              2,
-              0x36553f,
-              1
-            );
+  /* =======================================================
+     COLLECT EVIDENCE
+  ======================================================= */
 
-        bar.setDepth(100);
-
-        /*
-         * Small label.
-         */
-        const label =
-          this.add.text(
-            52,
-            18,
-            "SMART ACADEMY  •  BUDIDAYA",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "10px",
-              fontStyle:
-                "bold",
-              color:
-                "#B8C8B8",
-              letterSpacing:
-                1.5,
-            }
-          );
-
-        label.setDepth(
-          101
-        );
-
-        /*
-         * Title.
-         */
-        const title =
-          this.add.text(
-            52,
-            38,
-            "Cabai Setelah Hujan",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "19px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          );
-
-        title.setDepth(
-          101
-        );
-
-        /*
-         * Phase.
-         */
-        this.phaseText =
-          this.add.text(
-            420,
-            32,
-            "01  •  AMATI",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "12px",
-              fontStyle:
-                "bold",
-              color:
-                "#E8F1E8",
-            }
-          );
-
-        this.phaseText.setDepth(
-          101
-        );
-
-        /*
-         * Evidence pill.
-         */
-        const counterBg =
-          this.add
-            .rectangle(
-              1140,
-              42,
-              190,
-              42,
-              0x2e4d39,
-              1
-            );
-
-        counterBg.setDepth(
-          101
-        );
-
-        this.evidenceCounter =
-          this.add.text(
-            1060,
-            32,
-            "0 / 2 BUKTI",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "13px",
-              fontStyle:
-                "bold",
-              color:
-                "#FFFFFF",
-            }
-          );
-
-        this.evidenceCounter.setOrigin(
-          0.5
-        );
-
-        this.evidenceCounter.setDepth(
-          102
-        );
-      }
-
-      /* ======================================================
-         EVIDENCE COUNTER
-      ====================================================== */
-
-      updateEvidenceCounter() {
-        if (
-          !this.evidenceCounter
-        ) {
-          return;
-        }
-
-        const count =
-          this.observedIds.length;
-
-        this.evidenceCounter.setText(
-          `${count} / 2 BUKTI`
-        );
-
-        if (count >= 2) {
-          this.evidenceCounter.setColor(
-            "#DDF3E1"
-          );
-
-          this.phaseText?.setText(
-            "02  •  PILIH KEPUTUSAN"
-          );
-        }
-      }
-
-      /* ======================================================
-         INSTRUCTIONS
-      ====================================================== */
-
-      createInstructions() {
-        const box =
-          this.add.container(
-            GAME_WIDTH / 2,
-            655
-          );
-
-        const bg =
-          this.add
-            .rectangle(
-              0,
-              0,
-              610,
-              42,
-              COLORS.cream,
-              0.96
-            )
-            .setStrokeStyle(
-              2,
-              0xd9cdbb,
-              1
-            );
-
-        const text =
-          this.add.text(
-            -275,
-            -11,
-            "👆 Temukan 2 bukti: cek tanah, daun, dan drainase.",
-            {
-              fontFamily:
-                "Arial",
-              fontSize:
-                "12px",
-              fontStyle:
-                "bold",
-              color:
-                "#203027",
-            }
-          );
-
-        box.add([
-          bg,
-          text,
-        ]);
-
-        box.setDepth(
-          90
-        );
-
-        this.instructionBox =
-          box;
-      }
-
-      /* ======================================================
-         ENVIRONMENT ANIMATION
-      ====================================================== */
-
-      animateEnvironment() {
-        /*
-         * Rain.
-         */
-        this.rainDrops.forEach(
-          (drop) => {
-            this.tweens.add({
-              targets: drop,
-
-              y: {
-                from:
-                  Phaser.Math.Between(
-                    -30,
-                    280
-                  ),
-
-                to:
-                  Phaser.Math.Between(
-                    320,
-                    520
-                  ),
-              },
-
-              duration:
-                Phaser.Math.Between(
-                  700,
-                  1150
-                ),
-
-              repeat: -1,
-
-              delay:
-                Phaser.Math.Between(
-                  0,
-                  1000
-                ),
-
-              onRepeat: () => {
-                drop.x =
-                  Phaser.Math.Between(
-                    20,
-                    GAME_WIDTH - 20
-                  );
-              },
-            });
-          }
-        );
-
-        /*
-         * Water pulse.
-         */
-        this.waterPools.forEach(
-          (pool) => {
-            this.tweens.add({
-              targets: pool,
-
-              scaleX: 1.06,
-              scaleY: 0.94,
-
-              duration: 1100,
-
-              yoyo: true,
-
-              repeat: -1,
-
-              ease:
-                "Sine.InOut",
-            });
-          }
-        );
-      }
-
-      /* ======================================================
-         UPDATE
-      ====================================================== */
-
-      update() {
-        /*
-         * Counter terus sinkron.
-         */
-        if (
-          this.evidenceCounter &&
-          !this.isResultPhase
-        ) {
-          this.evidenceCounter.setText(
-            `${this.observedIds.length} / 2 BUKTI`
-          );
-        }
-      }
+  collectEvidence(id) {
+    if (
+      this.evidenceFound.has(id)
+    ) {
+      return;
     }
 
-    /* ========================================================
-       PHASER CONFIG
-    ======================================================== */
+    this.evidenceFound.add(id);
 
-    const config = {
-      type: Phaser.AUTO,
+    this.showEvidencePopup(
+      id
+    );
 
-      parent:
-        containerRef.current,
-
-      width:
-        GAME_WIDTH,
-
-      height:
-        GAME_HEIGHT,
-
-      backgroundColor:
-        "#91BD62",
-
-      transparent:
-        false,
-
-      /*
-       * Rendering.
-       */
-      render: {
-        antialias: true,
-        pixelArt: false,
-        roundPixels: false,
-      },
-
-      /*
-       * Scaling.
-       *
-       * FIT menjaga rasio 16:9.
-       *
-       * Tidak ada stretch.
-       */
-      scale: {
-        mode:
-          Phaser.Scale.FIT,
-
-        autoCenter:
-          Phaser.Scale.CENTER_BOTH,
-
-        width:
-          GAME_WIDTH,
-
-        height:
-          GAME_HEIGHT,
-
-        expandParent:
-          false,
-
-        autoRound:
-          true,
-      },
-
-      /*
-       * Input.
-       */
-      input: {
-        activePointers: 3,
-      },
-
-      /*
-       * Physics.
-       */
-      physics: {
-        default:
-          "arcade",
-
-        arcade: {
-          debug: false,
-        },
-      },
-
-      scene: [
-        CabaiScene,
-      ],
-    };
-
-    /* ========================================================
-       CREATE GAME
-    ======================================================== */
-
-    const game =
-      new Phaser.Game(
-        config
+    if (
+      this.onEvidenceFound
+    ) {
+      this.onEvidenceFound(
+        id,
+        this.evidenceFound.size
       );
+    }
 
-    gameRef.current =
-      game;
-
-    /*
-     * Expose API untuk Academy.jsx.
-     */
-    game.cabaiGame = {
-      observe: (
-        entityId
-      ) => {
-        const scene =
-          game.scene.getScene(
-            "CabaiScene"
-          );
-
-        if (!scene) {
-          return;
-        }
-
-        const zone =
-          scene.entityObjects[
-            entityId
-          ];
-
-        if (zone) {
-          scene.inspectEntity(
-            entityId,
-            zone
-          );
-        }
-      },
-
-      choose: (
-        choice
-      ) => {
-        const scene =
-          game.scene.getScene(
-            "CabaiScene"
-          );
-
-        if (!scene) {
-          return;
-        }
-
-        scene.selectChoice(
-          choice
-        );
-      },
-
-      replay: () => {
-        const scene =
-          game.scene.getScene(
-            "CabaiScene"
-          );
-
-        if (!scene) {
-          return;
-        }
-
-        scene.scene.restart();
-      },
-
-      exit: () => {
-        callbacksRef.current.onExit?.();
-      },
-    };
-
-    /* ========================================================
-       RESIZE HANDLER
-    ======================================================== */
-
-    const handleResize =
-      () => {
-        if (
-          gameRef.current
-        ) {
-          try {
-            gameRef.current.scale.refresh();
-          } catch (error) {
-            console.warn(
-              "[CabaiGame] resize error:",
-              error
-            );
+    if (
+      this.evidenceFound.size >=
+      GAME_CONFIG.evidence.length
+    ) {
+      this.time.delayedCall(
+        900,
+        () => {
+          if (
+            this.onDecisionReady
+          ) {
+            this.onDecisionReady();
           }
         }
+      );
+    }
+  }
+
+
+  /* =======================================================
+     EVIDENCE POPUP
+  ======================================================= */
+
+  showEvidencePopup(id) {
+    const evidence =
+      GAME_CONFIG.evidence.find(
+        (item) =>
+          item.id === id
+      );
+
+    if (!evidence) return;
+
+
+    const width =
+      this.isPortrait
+        ? this.w * 0.84
+        : Math.min(
+            this.w * 0.42,
+            430
+          );
+
+    const height =
+      this.isPortrait
+        ? 170
+        : 155;
+
+
+    const x =
+      this.w / 2;
+
+    const y =
+      this.isPortrait
+        ? this.h * 0.26
+        : this.h * 0.50;
+
+
+    const container =
+      this.add.container(
+        x,
+        y
+      );
+
+
+    const shadow =
+      this.add.rectangle(
+        5,
+        7,
+        width,
+        height,
+        0x000000,
+        0.20
+      );
+
+    const panel =
+      this.add.rectangle(
+        0,
+        0,
+        width,
+        height,
+        0xf7f4e9
+      );
+
+    panel.setStrokeStyle(
+      3,
+      0xd5a63b,
+      1
+    );
+
+
+    const icon =
+      this.add.text(
+        -width / 2 + 24,
+        -height / 2 + 22,
+        evidence.icon,
+        {
+          fontSize:
+            "25px",
+        }
+      );
+
+    const title =
+      this.add.text(
+        -width / 2 + 60,
+        -height / 2 + 22,
+        evidence.title,
+        {
+          fontFamily:
+            "Arial, sans-serif",
+          fontSize:
+            this.isPortrait
+              ? "15px"
+              : "16px",
+          fontStyle:
+            "bold",
+          color:
+            "#193326",
+        }
+      );
+
+
+    const description =
+      this.add.text(
+        -width / 2 + 24,
+        -height / 2 + 58,
+        evidence.description,
+        {
+          fontFamily:
+            "Arial, sans-serif",
+          fontSize:
+            this.isPortrait
+              ? "11px"
+              : "12px",
+          color:
+            "#58635a",
+          wordWrap: {
+            width:
+              width - 48,
+          },
+          lineSpacing: 4,
+        }
+      );
+
+
+    const button =
+      this.add.rectangle(
+        width / 2 - 62,
+        height / 2 - 25,
+        90,
+        32,
+        0x315d3e
+      );
+
+    button.setInteractive({
+      useHandCursor: true,
+    });
+
+
+    const buttonText =
+      this.add.text(
+        width / 2 - 62,
+        height / 2 - 25,
+        "LANJUT",
+        {
+          fontFamily:
+            "Arial, sans-serif",
+          fontSize:
+            "11px",
+          fontStyle:
+            "bold",
+          color:
+            "#ffffff",
+        }
+      );
+
+    buttonText.setOrigin(
+      0.5
+    );
+
+
+    container.add([
+      shadow,
+      panel,
+      icon,
+      title,
+      description,
+      button,
+      buttonText,
+    ]);
+
+
+    this.addObject(
+      container
+    );
+
+
+    button.on(
+      "pointerdown",
+      () => {
+        container.destroy();
+      }
+    );
+
+
+    container.setDepth(100);
+
+    container.setScale(0.85);
+    container.setAlpha(0);
+
+    this.tweens.add({
+      targets: container,
+      alpha: 1,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 220,
+      ease: "Back.easeOut",
+    });
+  }
+
+
+  /* =======================================================
+     INSTRUCTION
+  ======================================================= */
+
+  drawInstruction() {
+    const text =
+      this.evidenceFound.size <
+      GAME_CONFIG.evidence.length
+        ? "Temukan 2 bukti: cek tanah, daun, dan drainase."
+        : "Semua bukti ditemukan. Tentukan keputusanmu.";
+
+    const width =
+      this.isPortrait
+        ? this.w * 0.82
+        : Math.min(
+            this.w * 0.46,
+            440
+          );
+
+    const y =
+      this.isPortrait
+        ? this.h * 0.88
+        : this.h * 0.91;
+
+
+    const panel =
+      this.add.rectangle(
+        this.w / 2,
+        y,
+        width,
+        38,
+        0xf7f4e9,
+        0.98
+      );
+
+    panel.setStrokeStyle(
+      1,
+      0xe3d7bd,
+      1
+    );
+
+    this.addObject(panel);
+
+
+    const textObject =
+      this.add.text(
+        this.w / 2,
+        y,
+        `💡 ${text}`,
+        {
+          fontFamily:
+            "Arial, sans-serif",
+          fontSize:
+            this.isPortrait
+              ? "10px"
+              : "11px",
+          color:
+            "#193326",
+          align: "center",
+          wordWrap: {
+            width:
+              width - 20,
+          },
+        }
+      );
+
+    textObject.setOrigin(
+      0.5
+    );
+
+    this.addObject(
+      textObject
+    );
+  }
+
+
+  /* =======================================================
+     PROGRESS
+  ======================================================= */
+
+  drawProgress() {
+    const padding =
+      this.isPortrait
+        ? 12
+        : 18;
+
+    const text =
+      this.add.text(
+        padding,
+        padding,
+        "01  AMATI KEBUN",
+        {
+          fontFamily:
+            "Arial, sans-serif",
+          fontSize:
+            this.isPortrait
+              ? "12px"
+              : "14px",
+          fontStyle:
+            "bold",
+          color:
+            "#f7f4e9",
+        }
+      );
+
+    this.addObject(
+      text
+    );
+
+
+    const progress =
+      this.add.text(
+        this.w - padding,
+        padding,
+        `${this.evidenceFound.size}/${GAME_CONFIG.evidence.length} BUKTI`,
+        {
+          fontFamily:
+            "Arial, sans-serif",
+          fontSize:
+            this.isPortrait
+              ? "11px"
+              : "12px",
+          fontStyle:
+            "bold",
+          color:
+            "#f7f4e9",
+          backgroundColor:
+            "#315d3e",
+          padding: {
+            left: 10,
+            right: 10,
+            top: 7,
+            bottom: 7,
+          },
+        }
+      );
+
+    progress.setOrigin(
+      1,
+      0
+    );
+
+    this.addObject(
+      progress
+    );
+  }
+
+
+  /* =======================================================
+     UI DEPTH
+  ======================================================= */
+
+  bringUIToTop() {
+    this.children.list.forEach(
+      (object) => {
+        if (
+          object.__hotspotId
+        ) {
+          object.setDepth(20);
+        }
+      }
+    );
+  }
+}
+
+
+/* =========================================================
+   REACT COMPONENT
+========================================================= */
+
+export default function CabaiGame({
+  mission,
+  onComplete,
+  onBack,
+}) {
+  const gameParentRef =
+    useRef(null);
+
+  const gameRef =
+    useRef(null);
+
+  const [evidenceCount, setEvidenceCount] =
+    useState(0);
+
+  const [decisionOpen, setDecisionOpen] =
+    useState(false);
+
+  const [selectedDecision, setSelectedDecision] =
+    useState(null);
+
+  const [completed, setCompleted] =
+    useState(false);
+
+  const [orientation, setOrientation] =
+    useState(
+      typeof window !== "undefined" &&
+        window.innerWidth >
+          window.innerHeight
+        ? "landscape"
+        : "portrait"
+    );
+
+
+  /* =======================================================
+     ORIENTATION
+  ======================================================= */
+
+  useEffect(() => {
+    const updateOrientation =
+      () => {
+        if (
+          typeof window ===
+          "undefined"
+        ) {
+          return;
+        }
+
+        setOrientation(
+          window.innerWidth >
+            window.innerHeight
+            ? "landscape"
+            : "portrait"
+        );
       };
+
+    updateOrientation();
 
     window.addEventListener(
       "resize",
-      handleResize
+      updateOrientation
     );
 
     window.addEventListener(
       "orientationchange",
-      handleResize
+      updateOrientation
     );
-
-    /* ========================================================
-       CLEANUP
-    ======================================================== */
 
     return () => {
       window.removeEventListener(
         "resize",
-        handleResize
+        updateOrientation
       );
 
       window.removeEventListener(
         "orientationchange",
-        handleResize
+        updateOrientation
       );
+    };
+  }, []);
 
+
+  /* =======================================================
+     CREATE PHASER
+  ======================================================= */
+
+  useEffect(() => {
+    if (
+      !gameParentRef.current
+    ) {
+      return;
+    }
+
+    if (gameRef.current) {
+      return;
+    }
+
+
+    const parent =
+      gameParentRef.current;
+
+
+    const getSize =
+      () => {
+        const rect =
+          parent.getBoundingClientRect();
+
+        return {
+          width: Math.max(
+            1,
+            Math.round(
+              rect.width ||
+                parent.clientWidth ||
+                800
+            )
+          ),
+
+          height: Math.max(
+            1,
+            Math.round(
+              rect.height ||
+                parent.clientHeight ||
+                500
+            )
+          ),
+        };
+      };
+
+
+    const initial =
+      getSize();
+
+
+    const game =
+      new Phaser.Game({
+        type: Phaser.AUTO,
+
+        parent,
+
+        width:
+          initial.width,
+
+        height:
+          initial.height,
+
+        backgroundColor:
+          GAME_CONFIG.theme.bg,
+
+        render: {
+          antialias: true,
+          pixelArt: false,
+          roundPixels: true,
+        },
+
+        scale: {
+          mode: Phaser.Scale.RESIZE,
+
+          autoCenter:
+            Phaser.Scale.CENTER_BOTH,
+
+          width:
+            initial.width,
+
+          height:
+            initial.height,
+        },
+
+        input: {
+          active: true,
+        },
+
+        scene: [
+          CabaiScene,
+        ],
+      });
+
+
+    game.scene.start(
+      "CabaiScene",
+      {
+        onEvidenceFound: (
+          id,
+          count
+        ) => {
+          setEvidenceCount(
+            count
+          );
+        },
+
+        onDecisionReady: () => {
+          setDecisionOpen(
+            true
+          );
+        },
+      }
+    );
+
+
+    gameRef.current =
+      game;
+
+
+    return () => {
       if (
         gameRef.current
       ) {
@@ -3399,28 +1730,340 @@ export default function CabaiGame({
           null;
       }
     };
-  }, [mission?.id]);
+  }, []);
 
-  /* ==========================================================
-     REACT CONTAINER
-  ========================================================== */
+
+  /* =======================================================
+     DECISION
+  ======================================================= */
+
+  const handleDecision =
+    (decision) => {
+      setSelectedDecision(
+        decision
+      );
+      setDecisionOpen(
+        false
+      );
+    };
+
+
+  /* =======================================================
+     COMPLETE
+  ======================================================= */
+
+  const handleComplete =
+    () => {
+      setCompleted(
+        true
+      );
+
+      const result = {
+        missionId:
+          mission?.id ||
+          "cabai-hujan",
+
+        score:
+          selectedDecision?.score ||
+          0,
+
+        xp:
+          selectedDecision?.xp ||
+          mission?.xp ||
+          80,
+
+        coins:
+          selectedDecision?.coins ||
+          0,
+
+        completed: true,
+      };
+
+
+      if (
+        onComplete
+      ) {
+        onComplete(
+          result
+        );
+      }
+    };
+
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
     <div
-      ref={containerRef}
-      className="cabai-game-container"
-      style={{
-        width: "100%",
-        maxWidth: "1280px",
-        aspectRatio: "16 / 9",
-        minHeight: 0,
-        margin: "0 auto",
-        overflow: "hidden",
-        position: "relative",
-        background: "#91BD62",
-        borderRadius: "20px",
-        touchAction: "none",
-      }}
-    />
+      className={`cabai-game-shell ${orientation}`}
+    >
+
+      {/* ===================================================
+          TOP BAR
+      =================================================== */}
+
+      <header
+        className="cabai-game-header"
+      >
+        <button
+          type="button"
+          className="cabai-back-button"
+          onClick={onBack}
+          aria-label="Kembali"
+        >
+          ←
+        </button>
+
+        <div className="cabai-header-title">
+          <span>
+            {mission?.category ||
+              "BUDIDAYA"}
+          </span>
+
+          <strong>
+            {mission?.title ||
+              "Cabai Setelah Hujan"}
+          </strong>
+        </div>
+
+        <div className="cabai-header-progress">
+          {evidenceCount}/2 bukti
+        </div>
+      </header>
+
+
+      {/* ===================================================
+          GAME AREA
+      =================================================== */}
+
+      <main
+        className="cabai-game-main"
+      >
+        <div
+          className="cabai-game-frame"
+        >
+          <div
+            ref={
+              gameParentRef
+            }
+            className="cabai-phaser-container"
+          />
+        </div>
+      </main>
+
+
+      {/* ===================================================
+          DECISION MODAL
+      =================================================== */}
+
+      {decisionOpen && (
+        <div
+          className="cabai-overlay"
+        >
+          <div
+            className="cabai-decision-card"
+          >
+            <div className="cabai-decision-badge">
+              BUKTI LENGKAP
+            </div>
+
+            <h2>
+              Saatnya ambil keputusan
+            </h2>
+
+            <p>
+              Hujan sudah berlangsung
+              beberapa hari. Tanah
+              terlalu basah dan ada
+              perubahan pada daun.
+            </p>
+
+            <div className="cabai-decision-list">
+              {GAME_CONFIG.decisions.map(
+                (decision) => (
+                  <button
+                    key={
+                      decision.id
+                    }
+                    type="button"
+                    className="cabai-decision-option"
+                    onClick={() =>
+                      handleDecision(
+                        decision
+                      )
+                    }
+                  >
+                    <div>
+                      <strong>
+                        {
+                          decision.title
+                        }
+                      </strong>
+
+                      <span>
+                        {
+                          decision.description
+                        }
+                      </span>
+                    </div>
+
+                    <b>
+                      →
+                    </b>
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ===================================================
+          RESULT
+      =================================================== */}
+
+      {selectedDecision &&
+        !completed && (
+          <div
+            className="cabai-overlay"
+          >
+            <div
+              className="cabai-result-card"
+            >
+              <div className="cabai-result-icon">
+                {selectedDecision.score >=
+                80
+                  ? "🌱"
+                  : "💡"}
+              </div>
+
+              <span className="cabai-result-label">
+                KEPUTUSANMU
+              </span>
+
+              <h2>
+                {
+                  selectedDecision.title
+                }
+              </h2>
+
+              <div className="cabai-result-score">
+                +{selectedDecision.score} SCORE
+              </div>
+
+              <p>
+                {
+                  selectedDecision.feedback
+                }
+              </p>
+
+              <div className="cabai-learning-box">
+                <strong>
+                  Yang kamu pelajari
+                </strong>
+
+                <span>
+                  {
+                    selectedDecision.learning
+                  }
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="cabai-practice-button"
+                onClick={
+                  handleComplete
+                }
+              >
+                🌱 Siap Praktik
+              </button>
+
+              <small>
+                Sekarang coba amati
+                kondisi tanamanmu
+                sendiri di dunia nyata.
+              </small>
+            </div>
+          </div>
+        )}
+
+
+      {/* ===================================================
+          COMPLETED
+      =================================================== */}
+
+      {completed && (
+        <div
+          className="cabai-overlay"
+        >
+          <div
+            className="cabai-result-card"
+          >
+            <div className="cabai-result-icon">
+              🎉
+            </div>
+
+            <span className="cabai-result-label">
+              CASE SELESAI
+            </span>
+
+            <h2>
+              Kamu siap mencoba!
+            </h2>
+
+            <p>
+              Game selesai. Sekarang
+              waktunya membawa keputusan
+              ini ke kebun, lahan, atau
+              lingkunganmu.
+            </p>
+
+            <div className="cabai-reward-grid">
+              <div>
+                <strong>
+                  +{selectedDecision?.score ||
+                    0}
+                </strong>
+                <span>
+                  Score
+                </span>
+              </div>
+
+              <div>
+                <strong>
+                  +{selectedDecision?.coins ||
+                    0}
+                </strong>
+                <span>
+                  Coins
+                </span>
+              </div>
+
+              <div>
+                <strong>
+                  +{selectedDecision?.xp ||
+                    mission?.xp ||
+                    80}
+                </strong>
+                <span>
+                  XP
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="cabai-practice-button"
+              onClick={onBack}
+            >
+              Kembali ke Academy
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
