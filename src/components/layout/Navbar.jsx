@@ -14,84 +14,31 @@ import {
   UserRound,
   Wallet,
   X,
+  Sparkles,
 } from 'lucide-react';
 
 import logo1 from '../../assets/logo/logo1.png';
 import '../../css/Navbar.css';
 
 const navItems = [
-  {
-    id: 'home',
-    label: 'Beranda',
-    path: '/dashboard',
-    icon: House,
-  },
-  {
-    id: 'farm',
-    label: 'Smart Farming',
-    bottomLabel: 'Kebun',
-    path: '/smart-farming',
-    icon: Sprout,
-  },
-  {
-    id: 'academy',
-    label: 'Belajar',
-    path: '/academy',
-    icon: GraduationCap,
-  },
-  {
-    id: 'diagnosis',
-    label: 'Skrining',
-    path: '/diagnosis',
-    icon: ScanSearch,
-  },
-  {
-    id: 'erp',
-    label: 'AgroERP',
-    bottomLabel: 'ERP',
-    path: '/agro-erp',
-    icon: Wallet,
-  },
-  {
-    id: 'marketplace',
-    label: 'Pasar',
-    path: '/marketplace',
-    icon: ShoppingBag,
-  },
-  {
-    id: 'assistant',
-    label: 'Asisten AI',
-    path: '/assistant',
-    icon: Bot,
-  },
-  {
-    id: 'climate',
-    label: 'AgroClimate',
-    path: '/weather',
-    icon: CloudSun,
-  },
-  {
-    id: 'profile',
-    label: 'Profil',
-    path: '/profile',
-    icon: UserRound,
-  },
+  { id: 'home', label: 'Beranda', path: '/dashboard', icon: House },
+  { id: 'farm', label: 'Smart Farming', bottomLabel: 'Kebun', path: '/smart-farming', icon: Sprout },
+  { id: 'academy', label: 'Belajar', path: '/academy', icon: GraduationCap },
+  { id: 'diagnosis', label: 'Skrining', path: '/diagnosis', icon: ScanSearch },
+  { id: 'erp', label: 'AgroERP', bottomLabel: 'ERP', path: '/agro-erp', icon: Wallet },
+  { id: 'marketplace', label: 'Pasar', path: '/marketplace', icon: ShoppingBag },
+  { id: 'assistant', label: 'Asisten AI', path: '/assistant', icon: Bot },
+  { id: 'climate', label: 'AgroClimate', path: '/weather', icon: CloudSun },
+  { id: 'profile', label: 'Profil', path: '/profile', icon: UserRound },
 ];
 
-const bottomNavIds = [
-  'home',
-  'farm',
-  'erp',
-  'marketplace',
-  'profile',
-];
+const bottomNavIds = ['home', 'farm', 'erp', 'marketplace', 'profile'];
 
 const bottomNavItems = bottomNavIds
   .map((id) => navItems.find((item) => item.id === id))
   .filter(Boolean);
 
-const normalizePath = (path) =>
-  path.replace(/\/+$/, '') || '/';
+const normalizePath = (path) => path.replace(/\/+$/, '') || '/';
 
 export default function Navbar({ active: activeProp }) {
   const navigate = useNavigate();
@@ -113,9 +60,7 @@ export default function Navbar({ active: activeProp }) {
   const handleNavigate = (path) => {
     setMenuOpen(false);
 
-    const targetPath = normalizePath(path);
-
-    if (currentPath !== targetPath) {
+    if (currentPath !== normalizePath(path)) {
       navigate(path);
     }
   };
@@ -126,15 +71,11 @@ export default function Navbar({ active: activeProp }) {
 
   useEffect(() => {
     const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setMenuOpen(false);
-      }
+      if (event.key === 'Escape') setMenuOpen(false);
     };
 
     const handleResize = () => {
-      if (window.innerWidth > 1024) {
-        setMenuOpen(false);
-      }
+      if (window.innerWidth > 1024) setMenuOpen(false);
     };
 
     window.addEventListener('keydown', handleEscape);
@@ -152,38 +93,32 @@ export default function Navbar({ active: activeProp }) {
 
   return (
     <>
-      {/* =========================
-          HEADER
-      ========================== */}
-      <header className="tw-navbar ">
+      {/* DESKTOP & MOBILE HEADER */}
+      <header className="tw-navbar">
         <div className="tw-navbar-inner">
 
-          {/* BRAND */}
           <button
             type="button"
             className="tw-brand"
             onClick={() => handleNavigate('/dashboard')}
-            aria-label="TANIWAVE, buka dashboard"
+            aria-label="TANIWAVE Dashboard"
           >
             <span className="tw-brand-icon">
-              <img
-                src={logo1}
-                alt="TANIWAVE"
-              />
+              <img src={logo1} alt="" />
             </span>
 
-            <span className="tw-brand-name">
-              TANI<span>WAVE</span>
+            <span className="tw-brand-content">
+              <span className="tw-brand-name">
+                TANI<span>WAVE</span>
+              </span>
+              <span className="tw-brand-caption">
+                Grow Beyond Limits
+              </span>
             </span>
           </button>
 
-          {/* =========================
-              DESKTOP NAVIGATION
-          ========================== */}
-          <nav
-            className="tw-desktop-nav"
-            aria-label="Navigasi utama"
-          >
+          {/* DESKTOP NAVIGATION */}
+          <nav className="tw-desktop-nav" aria-label="Navigasi utama">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeId === item.id;
@@ -192,143 +127,122 @@ export default function Navbar({ active: activeProp }) {
                 <button
                   key={item.id}
                   type="button"
-                  className={`tw-nav-link ${
-                    isActive ? 'active' : ''
-                  }`}
+                  className={`tw-nav-link ${isActive ? 'active' : ''}`}
                   onClick={() => handleNavigate(item.path)}
-                  aria-current={
-                    isActive ? 'page' : undefined
-                  }
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <Icon
-                    size={16}
-                    strokeWidth={1.9}
-                  />
-
+                  <Icon size={17} strokeWidth={1.9} />
                   <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          {/* =========================
-              MOBILE MENU TOGGLE
-          ========================== */}
+          {/* MOBILE MENU BUTTON */}
           <button
             type="button"
-            className={`tw-menu-toggle ${
-              menuOpen ? 'active' : ''
-            }`}
-            onClick={() =>
-              setMenuOpen((previous) => !previous)
-            }
-            aria-label={
-              menuOpen ? 'Tutup menu' : 'Buka menu'
-            }
+            className={`tw-menu-toggle ${menuOpen ? 'active' : ''}`}
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
             aria-expanded={menuOpen}
             aria-controls="tw-mobile-menu"
           >
-            {menuOpen ? (
-              <X size={21} />
-            ) : (
-              <Menu size={21} />
-            )}
+            {menuOpen ? <X size={21} /> : <Menu size={21} />}
           </button>
         </div>
       </header>
 
-      {/* =========================
-          MOBILE DROPDOWN
-      ========================== */}
-      {menuOpen && (
-        <>
+      {/* MOBILE DRAWER */}
+      <div
+        className={`tw-mobile-overlay ${menuOpen ? 'show' : ''}`}
+        aria-hidden={!menuOpen}
+        onClick={() => setMenuOpen(false)}
+      />
+
+      <aside
+        id="tw-mobile-menu"
+        className={`tw-mobile-menu ${menuOpen ? 'open' : ''}`}
+        aria-label="Menu tambahan"
+        aria-hidden={!menuOpen}
+        inert={!menuOpen}
+      >
+        <div className="tw-mobile-menu-header">
+          <div className="tw-drawer-brand">
+            <span className="tw-drawer-logo">
+              <img src={logo1} alt="" />
+            </span>
+
+            <div>
+              <strong>TANIWAVE</strong>
+              <span>Explore your agriculture</span>
+            </div>
+          </div>
+
           <button
             type="button"
-            className="tw-menu-backdrop"
+            className="tw-mobile-close"
             onClick={() => setMenuOpen(false)}
-            aria-label="Tutup menu navigasi"
-          />
-
-          <nav
-            id="tw-mobile-menu"
-            className="tw-mobile-menu"
-            aria-label="Menu tambahan"
+            aria-label="Tutup menu"
           >
-            {/* MOBILE MENU HEADER */}
-            <div className="tw-mobile-menu-header">
-              <div>
-                <span className="tw-mobile-eyebrow">
-                  TANIWAVE
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="tw-drawer-intro">
+          <span className="tw-drawer-eyebrow">
+            <Sparkles size={13} />
+            YOUR AGRICULTURE SPACE
+          </span>
+
+          <h3>Jelajahi fitur TANIWAVE</h3>
+          <p>Semua kebutuhan pertanian dalam satu ruang.</p>
+        </div>
+
+        <div className="tw-mobile-links">
+          <span className="tw-menu-section-label">
+            FITUR LAINNYA
+          </span>
+
+          {mobileMenuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeId === item.id;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`tw-mobile-link ${isActive ? 'active' : ''}`}
+                onClick={() => handleNavigate(item.path)}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <span className="tw-mobile-link-icon">
+                  <Icon size={19} strokeWidth={1.8} />
                 </span>
 
-                <strong>
-                  Jelajahi fitur
-                </strong>
-              </div>
+                <span className="tw-mobile-link-label">
+                  {item.label}
+                </span>
 
-              <button
-                type="button"
-                className="tw-mobile-close"
-                onClick={() => setMenuOpen(false)}
-                aria-label="Tutup menu"
-              >
-                <X size={19} />
+                <ChevronRight size={17} className="tw-mobile-chevron" />
               </button>
-            </div>
+            );
+          })}
+        </div>
 
-            {/* MOBILE MENU LINKS */}
-            <div className="tw-mobile-links">
-              {mobileMenuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeId === item.id;
+        <div className="tw-mobile-menu-footer">
+          <span className="tw-footer-icon">
+            <Sprout size={19} />
+          </span>
 
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`tw-mobile-link ${
-                      isActive ? 'active' : ''
-                    }`}
-                    onClick={() =>
-                      handleNavigate(item.path)
-                    }
-                    aria-current={
-                      isActive ? 'page' : undefined
-                    }
-                  >
-                    <span className="tw-mobile-link-icon">
-                      <Icon size={18} />
-                    </span>
+          <div>
+            <strong>Grow your future.</strong>
+            <span>Mulai dari kebunmu.</span>
+          </div>
+        </div>
+      </aside>
 
-                    <span className="tw-mobile-link-label">
-                      {item.label}
-                    </span>
-
-                    <ChevronRight size={16} />
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* MOBILE MENU FOOTER */}
-            <div className="tw-mobile-menu-footer">
-              <Sprout size={16} />
-
-              <span>
-                Mulai dari kebunmu.
-              </span>
-            </div>
-          </nav>
-        </>
-      )}
-
-      {/* =========================
-          MOBILE BOTTOM NAVIGATION
-      ========================== */}
-      <nav
-        className="tw-bottom-nav"
-        aria-label="Navigasi bawah"
-      >
+      {/* MOBILE BOTTOM NAVIGATION */}
+      <nav className="tw-bottom-nav" aria-label="Navigasi bawah">
         {bottomNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeId === item.id;
@@ -337,23 +251,15 @@ export default function Navbar({ active: activeProp }) {
             <button
               key={item.id}
               type="button"
-              className={`tw-bottom-link ${
-                isActive ? 'active' : ''
-              }`}
-              onClick={() =>
-                handleNavigate(item.path)
-              }
-              aria-current={
-                isActive ? 'page' : undefined
-              }
+              className={`tw-bottom-link ${isActive ? 'active' : ''}`}
+              onClick={() => handleNavigate(item.path)}
+              aria-current={isActive ? 'page' : undefined}
               aria-label={item.label}
             >
               <span className="tw-bottom-icon">
                 <Icon
-                  size={23}
-                  strokeWidth={
-                    isActive ? 2.1 : 1.7
-                  }
+                  size={21}
+                  strokeWidth={isActive ? 2.3 : 1.8}
                 />
               </span>
 
